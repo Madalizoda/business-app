@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учёт товаров из Китая</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; overflow-y: auto; }
+        .modal-content { background: white; border-radius: 0.5rem; padding: 1.5rem; width: 100%; max-height: 90vh; overflow-y: auto; }
+        @media (min-width: 640px) { .modal-content { max-width: 48rem; } }
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .preview-image { max-width: 150px; max-height: 150px; object-fit: cover; border-radius: 0.5rem; }
+        .thumbnail { width: 80px; height: 80px; object-fit: cover; border-radius: 0.375rem; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+            <h1 class="text-2xl font-bold mb-6 text-center">🔐 Вход в систему</h1>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Пароль</label>
+                    <input type="password" id="password-input" class="w-full border rounded-lg px-4 py-2" placeholder="Введите пароль" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Войти</button>
+                <p class="text-xs text-gray-500 text-center mt-4">Первый вход? Придумайте пароль - он сохранится автоматически</p>
+            </form>
+        </div>
+    </div>
+
+    <div id="app" class="hidden">
+        <div class="bg-white shadow-sm border-b sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
+                <h1 class="text-xl sm:text-2xl font-bold">📦 Учёт товаров</h1>
+                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm">🚪 Выйти</button>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto p-4 sm:p-6">
+            <div class="flex gap-2 mb-6 border-b overflow-x-auto">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap tab-active">📊 Панель</button>
+                <button onclick="switchTab('orders')" id="tab-orders" class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">📦 Заказы (<span id="orders-count">0</span>)</button>
+                <button onclick="switchTab('inventory')" id="tab-inventory" class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">📋 Наличие (<span id="inventory-count">0</span>)</button>
+                <button onclick="switchTab('sales')" id="tab-sales" class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">💰 Продажи (<span id="sales-count">0</span>)</button>
+                <button onclick="switchTab('clients')" id="tab-clients" class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">👥 Клиенты</button>
+                <button onclick="switchTab('personal')" id="tab-personal" class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">🏠 Для себя</button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <input type="text" id="search" placeholder="🔍 Поиск..." class="flex-1 border rounded-lg px-4 py-2" oninput="renderCurrentTab()">
+                <button onclick="showAddButton()" id="add-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap">+ Добавить</button>
+            </div>
+
+            <div id="content"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://yyhaajwjrlkcvztskdhk.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5aGFhandqcmxrY3Z6dHNrZGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1NDE2NDMsImV4cCI6MjA3OTExNzY0M30.CpnXv6Gsym1APJGB_RFKUNqJZX1zfPqkSnloanQ2JNs';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentTab = 'dashboard';
+        let orders = [];
+        let inventory = [];
+        let sales = [];
+        let personalOrders = [];
+        let isLoggedIn = false;
+
+        // Упрощенная система входа
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password-input').value;
+            
+            if (password) {
+                localStorage.setItem('app-password', password);
+                login();
+            }
+        };
+
+        function login() {
+            isLoggedIn = true;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            loadData();
+        }
+
+        function logout() {
+            if (confirm('Выйти из системы?')) {
+                isLoggedIn = false;
+                document.getElementById('app').classList.add('hidden');
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('password-input').value = '';
+            }
+        }
+
+        // Проверка авторизации при загрузке
+        if (localStorage.getItem('app-password')) {
+            login();
+        }
+
+        async function loadData() {
+            try {
+                console.log('Загрузка данных...');
+                
+                // Загружаем заказы
+                const { data: ordersData, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*');
+                
+                if (ordersError) {
+                    console.log('Ошибка загрузки заказов:', ordersError);
+                    orders = [];
+                } else {
+                    orders = ordersData || [];
+                    console.log('Заказы загружены:', orders.length);
+                }
+
+                // Загружаем наличие
+                const { data: inventoryData, error: inventoryError } = await supabase
+                    .from('inventory')
+                    .select('*');
+                
+                if (inventoryError) {
+                    console.log('Ошибка загрузки наличия:', inventoryError);
+                    inventory = [];
+                } else {
+                    inventory = inventoryData || [];
+                    console.log('Наличие загружено:', inventory.length);
+                }
+
+                // Загружаем продажи
+                const { data: salesData, error: salesError } = await supabase
+                    .from('sales')
+                    .select('*');
+                
+                if (salesError) {
+                    console.log('Ошибка загрузки продаж:', salesError);
+                    sales = [];
+                } else {
+                    sales = salesData || [];
+                }
+
+                // Загружаем личные заказы
+                const { data: personalData, error: personalError } = await supabase
+                    .from('personal_orders')
+                    .select('*');
+                
+                if (personalError) {
+                    console.log('Ошибка загрузки личных заказов:', personalError);
+                    personalOrders = [];
+                } else {
+                    personalOrders = personalData || [];
+                }
+
+                updateCounts();
+                renderCurrentTab();
+                
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+                document.getElementById('content').innerHTML = `
+                    <div class="bg-yellow-50 p-6 rounded-lg">
+                        <h3 class="text-yellow-800 font-bold mb-2">⚠️ Проверьте настройки базы данных</h3>
+                        <p class="text-yellow-600">Некоторые функции могут быть недоступны</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateCounts() {
+            document.getElementById('orders-count').textContent = orders.length;
+            document.getElementById('inventory-count').textContent = inventory.length;
+            document.getElementById('sales-count').textContent = sales.length;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.className = 'px-4 sm:px-6 py-3 font-medium whitespace-nowrap text-gray-600');
+            document.getElementById('tab-' + tab).className = 'px-4 sm:px-6 py-3 font-medium whitespace-nowrap tab-active';
+            renderCurrentTab();
+        }
+
+        function showAddButton() {
+            if (currentTab === 'orders') openOrderModal();
+            else if (currentTab === 'sales') openSaleModal();
+            else if (currentTab === 'personal') openPersonalOrderModal();
+        }
+
+        function renderCurrentTab() {
+            const search = document.getElementById('search').value.toLowerCase();
+            document.getElementById('add-btn').classList.toggle('hidden', !['orders', 'sales', 'personal'].includes(currentTab));
+            
+            if (currentTab === 'dashboard') renderDashboard();
+            else if (currentTab === 'orders') renderOrders(search);
+            else if (currentTab === 'inventory') renderInventory(search);
+            else if (currentTab === 'sales') renderSales(search);
+            else if (currentTab === 'clients') renderClients(search);
+            else if (currentTab === 'personal') renderPersonalOrders(search);
+        }
+
+        function renderDashboard() {
+            const totalInvested = orders.reduce((sum, o) => sum + (parseFloat(o.price_somoni) || 0) + (parseFloat(o.final_delivery_price) || 0), 0);
+            const totalRevenue = sales.reduce((sum, s) => sum + (parseFloat(s.sale_price) || 0) + (parseFloat(s.delivery_price) || 0), 0);
+            const totalProfit = sales.reduce((sum, s) => {
+                const item = inventory.find(i => i.id === s.inventory_id);
+                const cost = parseFloat(item?.cost_price) || 0;
+                const revenue = (parseFloat(s.sale_price) || 0) + (parseFloat(s.delivery_price) || 0);
+                return sum + (revenue - cost);
+            }, 0);
+            const personalSpent = personalOrders.reduce((sum, p) => sum + (parseFloat(p.total_cost) || 0), 0);
+            const balance = totalProfit - personalSpent;
+
+            const inTransit = orders.filter(o => o.status === 'in_transit').length;
+            const received = orders.filter(o => o.status === 'received').length;
+
+            document.getElementById('content').innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="text-gray-500 text-sm mb-2">💰 Баланс</div>
+                        <div class="text-3xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}">${balance.toFixed(2)} сом</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="text-gray-500 text-sm mb-2">📈 Общая прибыль</div>
+                        <div class="text-3xl font-bold text-green-600">${totalProfit.toFixed(2)} сом</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="text-gray-500 text-sm mb-2">💸 Выручка</div>
+                        <div class="text-3xl font-bold text-blue-600">${totalRevenue.toFixed(2)} сом</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="text-gray-500 text-sm mb-2">📦 Инвестировано</div>
+                        <div class="text-3xl font-bold text-orange-600">${totalInvested.toFixed(2)} сом</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="text-gray-500 text-sm mb-2">🏠 Потрачено на себя</div>
+                        <div class="text-3xl font-bold text-purple-600">${personalSpent.toFixed(2)} сом</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="text-gray-500 text-sm mb-2">📋 Товаров в наличии</div>
+                        <div class="text-3xl font-bold text-indigo-600">${inventory.length}</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="font-bold text-lg mb-4">📊 Статистика заказов</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between"><span>Всего заказов:</span><span class="font-bold">${orders.length}</span></div>
+                            <div class="flex justify-between"><span>В пути:</span><span class="font-bold text-blue-600">${inTransit}</span></div>
+                            <div class="flex justify-between"><span>Получено:</span><span class="font-bold text-green-600">${received}</span></div>
+                            <div class="flex justify-between"><span>Продаж:</span><span class="font-bold text-purple-600">${sales.length}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="font-bold text-lg mb-4">👥 Топ клиенты</h3>
+                        <div class="space-y-2">
+                            ${getTopClients().map(c => `
+                                <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                    <span>${c.name}</span>
+                                    <span class="font-bold text-green-600">${c.total.toFixed(2)} сом</span>
+                                </div>
+                            `).join('') || '<div class="text-gray-500 text-center py-4">Нет данных о клиентах</div>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getTopClients() {
+            const clientsMap = {};
+            sales.forEach(s => {
+                const total = (parseFloat(s.sale_price) || 0) + (parseFloat(s.delivery_price) || 0);
+                const clientName = s.customer_name || 'Неизвестный клиент';
+                if (!clientsMap[clientName]) {
+                    clientsMap[clientName] = { name: clientName, total: 0 };
+                }
+                clientsMap[clientName].total += total;
+            });
+            return Object.values(clientsMap).sort((a, b) => b.total - a.total).slice(0, 5);
+        }
+
+        function renderOrders(search) {
+            const filtered = orders.filter(o => 
+                (o.order_number || '').toLowerCase().includes(search) ||
+                (o.product_name || '').toLowerCase().includes(search) ||
+                (o.cargo || '').toLowerCase().includes(search)
+            );
+
+            const statusMap = {
+                ordered: ['Заказан', 'bg-gray-100 text-gray-800'],
+                warehouse_china: ['На складе', 'bg-yellow-100 text-yellow-800'],
+                in_transit: ['В пути', 'bg-blue-100 text-blue-800'],
+                received: ['Получен', 'bg-green-100 text-green-800']
+            };
+
+            document.getElementById('content').innerHTML = filtered.length ? `
+                <div class="bg-white rounded-lg shadow overflow-x-auto">
+                    <table class="w-full min-w-[640px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Товар</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Карго</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Цена</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">${filtered.map(o => {
+                            const [name, color] = statusMap[o.status] || ['Неизвестно', 'bg-gray-100 text-gray-800'];
+                            return `<tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3">
+                                    ${o.photo_url ? `<img src="${o.photo_url}" class="thumbnail mb-2">` : ''}
+                                    <div class="font-medium">${o.product_name || 'Без названия'}</div>
+                                    <div class="text-sm text-gray-500">#${o.order_number || 'Нет'}</div>
+                                </td>
+                                <td class="px-4 py-3">${o.cargo || 'Не указано'}</td>
+                                <td class="px-4 py-3">
+                                    <div>${o.price_yuan || '0'} ¥</div>
+                                    <div class="text-sm">${o.price_somoni || '0'} сом</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded text-xs font-semibold ${color}">${name}</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <button onclick='editOrder(${o.id})' class="text-blue-600 mr-2">✏️</button>
+                                    <button onclick='deleteOrder(${o.id})' class="text-red-600">🗑️</button>
+                                </td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>
+                </div>
+            ` : '<div class="bg-white p-12 rounded-lg shadow text-center text-gray-500">Нет заказов</div>';
+        }
+
+        function renderInventory(search) {
+            const filtered = inventory.filter(i => 
+                (i.name || '').toLowerCase().includes(search) ||
+                (i.order_number || '').toLowerCase().includes(search)
+            );
+            
+            document.getElementById('content').innerHTML = filtered.length ? `
+                <div class="bg-white rounded-lg shadow overflow-x-auto">
+                    <table class="w-full min-w-[640px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Товар</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Кол-во</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Себестоимость</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Вес</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">${filtered.map(i => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3">
+                                    ${i.photo_url ? `<img src="${i.photo_url}" class="thumbnail mb-2">` : ''}
+                                    <div class="font-medium">${i.name || 'Без названия'}</div>
+                                    <div class="text-sm text-gray-500">#${i.order_number || 'Нет'}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="font-semibold text-green-600">${i.quantity || 1}</span>
+                                </td>
+                                <td class="px-4 py-3">${i.cost_price || '0'} сом</td>
+                                <td class="px-4 py-3">${i.weight || 'Не указан'} кг</td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table>
+                </div>
+            ` : '<div class="bg-white p-12 rounded-lg shadow text-center text-gray-500">Нет товаров в наличии</div>';
+        }
+
+        function renderSales(search) {
+            const filtered = sales.filter(s => 
+                (s.customer_name || '').toLowerCase().includes(search) || 
+                (s.city || '').toLowerCase().includes(search)
+            );
+            
+            document.getElementById('content').innerHTML = filtered.length ? `
+                <div class="bg-white rounded-lg shadow overflow-x-auto">
+                    <table class="w-full min-w-[640px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Товар</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Клиент</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Цена</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Прибыль</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">${filtered.map(s => {
+                            const item = inventory.find(i => i.id === s.inventory_id) || {name: 'Удален', cost_price: 0};
+                            const profit = (parseFloat(s.sale_price) || 0) + (parseFloat(s.delivery_price) || 0) - (parseFloat(item.cost_price) || 0);
+                            return `<tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-sm">${s.sale_date || 'Не указана'}</td>
+                                <td class="px-4 py-3">
+                                    <div class="font-medium">${item.name}</div>
+                                    <div class="text-xs text-gray-500">x${s.quantity || 1}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="font-medium">${s.customer_name || 'Неизвестный'}</div>
+                                    <div class="text-xs text-gray-500">${s.phone || ''}</div>
+                                    <div class="text-xs text-gray-500">${s.city || ''}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    ${s.sale_price || '0'} сом
+                                    ${s.delivery_type === 'paid' ? `<div class="text-xs text-orange-600">+${s.delivery_price || '0'} дост</div>` : ''}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}">${profit.toFixed(2)} сом</span>
+                                </td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>
+                </div>
+            ` : '<div class="bg-white p-12 rounded-lg shadow text-center text-gray-500">Нет продаж</div>';
+        }
+
+        function renderClients(search) {
+            const clientsMap = {};
+            sales.forEach(s => {
+                const clientName = s.customer_name || 'Неизвестный клиент';
+                if (!clientsMap[clientName]) {
+                    clientsMap[clientName] = {
+                        name: clientName,
+                        phone: s.phone,
+                        city: s.city,
+                        total: 0,
+                        profit: 0,
+                        count: 0,
+                        sales: []
+                    };
+                }
+                const item = inventory.find(i => i.id === s.inventory_id) || {cost_price: 0};
+                const saleTotal = (parseFloat(s.sale_price) || 0) + (parseFloat(s.delivery_price) || 0);
+                const profit = saleTotal - (parseFloat(item.cost_price) || 0);
+                
+                clientsMap[clientName].total += saleTotal;
+                clientsMap[clientName].profit += profit;
+                clientsMap[clientName].count += 1;
+                clientsMap[clientName].sales.push({...s, profit});
+            });
+
+            const clients = Object.values(clientsMap).filter(c => 
+                c.name.toLowerCase().includes(search) || 
+                (c.city || '').toLowerCase().includes(search)
+            ).sort((a, b) => b.total - a.total);
+
+            document.getElementById('content').innerHTML = clients.length ? `
+                <div class="space-y-4">
+                    ${clients.map(c => `
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                                <div>
+                                    <h3 class="text-xl font-bold">${c.name}</h3>
+                                    <div class="text-sm text-gray-500">${c.phone || 'Телефон не указан'} • ${c.city || 'Город не указан'}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold text-green-600">${c.total.toFixed(2)} сом</div>
+                                    <div class="text-sm text-gray-500">Прибыль: ${c.profit.toFixed(2)} сом</div>
+                                </div>
+                            </div>
+                            <div class="border-t pt-4">
+                                <div class="font-medium mb-2">История покупок (${c.count})</div>
+                                <div class="space-y-2">
+                                    ${c.sales.map(s => {
+                                        const item = inventory.find(i => i.id === s.inventory_id) || {name: 'Удален'};
+                                        return `
+                                            <div class="flex justify-between text-sm bg-gray-50 p-2 rounded">
+                                                <span>${s.sale_date || 'Не указана'} - ${item.name}</span>
+                                                <span class="font-medium">${s.sale_price || '0'} сом (прибыль: ${s.profit.toFixed(2)})</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<div class="bg-white p-12 rounded-lg shadow text-center text-gray-500">Нет данных о клиентах</div>';
+        }
+
+        function renderPersonalOrders(search) {
+            const filtered = personalOrders.filter(p => 
+                (p.product_name || '').toLowerCase().includes(search) ||
+                (p.notes || '').toLowerCase().includes(search)
+            );
+            const total = filtered.reduce((sum, p) => sum + (parseFloat(p.total_cost) || 0), 0);
+
+            document.getElementById('content').innerHTML = `
+                <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                    <div class="text-sm text-gray-600">Всего потрачено на личные заказы:</div>
+                    <div class="text-2xl font-bold text-blue-600">${total.toFixed(2)} сом</div>
+                </div>
+                ${filtered.length ? `
+                    <div class="bg-white rounded-lg shadow overflow-x-auto">
+                        <table class="w-full min-w-[640px]">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Товар</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Стоимость</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">${filtered.map(p => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3">
+                                        ${p.photo_url ? `<img src="${p.photo_url}" class="thumbnail mb-2">` : ''}
+                                        <div class="font-medium">${p.product_name || 'Без названия'}</div>
+                                        ${p.notes ? `<div class="text-sm text-gray-500">${p.notes}</div>` : ''}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm">${p.order_date || 'Не указана'}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="font-bold">${p.total_cost || '0'} сом</div>
+                                        <div class="text-xs text-gray-500">${p.price_yuan || '0'} ¥</div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <button onclick='deletePersonalOrder(${p.id})' class="text-red-600">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}</tbody>
+                        </table>
+                    </div>
+                ` : '<div class="bg-white p-12 rounded-lg shadow text-center text-gray-500">Нет личных заказов</div>'}
+            `;
+        }
+
+        // ФУНКЦИЯ ДОБАВЛЕНИЯ ЗАКАЗА С АВТОМАТИЧЕСКИМ ДОБАВЛЕНИЕМ В НАЛИЧИЕ
+        function openOrderModal(orderId = null) {
+            const order = orderId ? orders.find(o => o.id === orderId) : null;
+            
+            const data = order || {
+                order_number: 'ORDER-' + Date.now(),
+                product_name: '',
+                price_yuan: '',
+                price_somoni: '',
+                cargo: '',
+                order_date: new Date().toISOString().split('T')[0],
+                status: 'ordered',
+                has_client: false,
+                client_name: '',
+                client_phone: '',
+                client_city: '',
+                client_paid_product: false,
+                client_paid_delivery: false,
+                estimated_delivery_price: '',
+                track_code: '',
+                shipping_date: '',
+                expected_arrival_date: '',
+                final_delivery_price: '',
+                weight: '',
+                received_date: ''
+            };
+
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">${order ? '✏️ Редактировать' : '➕ Новый'} заказ</h3>
+                        <button onclick="this.closest('.modal').remove()" class="text-2xl">&times;</button>
+                    </div>
+                    <form class="space-y-4">
+                        <div>
+                            <label class="block text-sm mb-1">📸 Фото товара</label>
+                            <input type="file" accept="image/*" id="order-photo-input" class="w-full border rounded px-3 py-2">
+                            ${data.photo_url ? `<img src="${data.photo_url}" class="preview-image mt-2">` : ''}
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm mb-1">Номер заказа *</label>
+                                <input name="order_number" required class="w-full border rounded px-3 py-2" value="${data.order_number}">
+                            </div>
+                            <div>
+                                <label class="block text-sm mb-1">Дата заказа *</label>
+                                <input type="date" name="order_date" required class="w-full border rounded px-3 py-2" value="${data.order_date}">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm mb-1">Название товара *</label>
+                            <input name="product_name" required class="w-full border rounded px-3 py-2" value="${data.product_name}">
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm mb-1">Цена (юани) *</label>
+                                <input type="number" step="0.01" name="price_yuan" required class="w-full border rounded px-3 py-2" value="${data.price_yuan}">
+                            </div>
+                            <div>
+                                <label class="block text-sm mb-1">Цена (сомони) *</label>
+                                <input type="number" step="0.01" name="price_somoni" required class="w-full border rounded px-3 py-2" value="${data.price_somoni}">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm mb-1">Карго *</label>
+                            <input name="cargo" required class="w-full border rounded px-3 py-2" value="${data.cargo}">
+                        </div>
+                        
+                        <!-- Блок клиента -->
+                        <div>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" name="has_client" ${data.has_client ? 'checked' : ''} 
+                                       onchange="toggleClientFields(this)">
+                                <span class="font-medium text-purple-600">Есть клиент (предоплата)</span>
+                            </label>
+                        </div>
+                        
+                        <div id="clientFields" class="${data.has_client ? '' : 'hidden'} space-y-4 bg-purple-50 p-4 rounded">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm mb-1">Имя клиента</label>
+                                    <input name="client_name" class="w-full border rounded px-3 py-2" value="${data.client_name || ''}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm mb-1">Телефон</label>
+                                    <input name="client_phone" class="w-full border rounded px-3 py-2" value="${data.client_phone || ''}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm mb-1">Город</label>
+                                    <input name="client_city" class="w-full border rounded px-3 py-2" value="${data.client_city || ''}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm mb-1">Примерная цена доставки</label>
+                                    <input type="number" step="0.01" name="estimated_delivery_price" 
+                                           class="w-full border rounded px-3 py-2" value="${data.estimated_delivery_price || ''}">
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" name="client_paid_product" ${data.client_paid_product ? 'checked' : ''}>
+                                    <span class="text-sm">Клиент оплатил товар</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" name="client_paid_delivery" ${data.client_paid_delivery ? 'checked' : ''}>
+                                    <span class="text-sm">Клиент оплатил доставку</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Статус заказа -->
+                        <div>
+                            <label class="block text-sm mb-1">Статус *</label>
+                            <select name="status" required class="w-full border rounded px-3 py-2" 
+                                    onchange="toggleStatusFields(this)">
+                                <option value="ordered" ${data.status === 'ordered' ? 'selected' : ''}>Заказан</option>
+                                <option value="warehouse_china" ${data.status === 'warehouse_china' ? 'selected' : ''}>На складе в Китае</option>
+                                <option value="in_transit" ${data.status === 'in_transit' ? 'selected' : ''}>В пути</option>
+                                <option value="received" ${data.status === 'received' ? 'selected' : ''}>Получен</option>
+                            </select>
+                        </div>
+
+                        <!-- Поля для статуса "В пути" и "Получен" -->
+                        <div id="transitFields" class="${['in_transit', 'received'].includes(data.status) ? '' : 'hidden'} grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm mb-1">Трек-код</label>
+                                <input name="track_code" class="w-full border rounded px-3 py-2" value="${data.track_code || ''}">
+                            </div>
+                            <div>
+                                <label class="block text-sm mb-1">Дата отправки</label>
+                                <input type="date" name="shipping_date" class="w-full border rounded px-3 py-2" value="${data.shipping_date || ''}">
+                            </div>
+                            <div>
+                                <label class="block text-sm mb-1">Ожидаемое прибытие</label>
+                                <input type="date" name="expected_arrival_date" class="w-full border rounded px-3 py-2" value="${data.expected_arrival_date || ''}">
+                            </div>
+                        </div>
+
+                        <!-- Поля для статуса "Получен" -->
+                        <div id="receivedFields" class="${data.status === 'received' ? '' : 'hidden'} bg-green-50 p-4 rounded grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm mb-1">Финальная цена доставки</label>
+                                <input type="number" step="0.01" name="final_delivery_price" 
+                                       class="w-full border rounded px-3 py-2" value="${data.final_delivery_price || ''}">
+                            </div>
+                            <div>
+                                <label class="block text-sm mb-1">Вес (кг)</label>
+                                <input type="number" step="0.01" name="weight" 
+                                       class="w-full border rounded px-3 py-2" value="${data.weight || ''}">
+                            </div>
+                            <div>
+                                <label class="block text-sm mb-1">Дата получения</label>
+                                <input type="date" name="received_date" 
+                                       class="w-full border rounded px-3 py-2" value="${data.received_date || ''}">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 pt-4">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                                ${order ? 'Обновить' : 'Создать'} заказ
+                            </button>
+                            <button type="button" onclick="this.closest('.modal').remove()" class="bg-gray-300 px-6 py-2 rounded">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            // Обработчик формы
+            modal.querySelector('form').onsubmit = async (e) => {
+                e.preventDefault();
+                
+                const formData = new FormData(e.target);
+                const newOrder = {
+                    order_number: formData.get('order_number'),
+                    product_name: formData.get('product_name'),
+                    price_yuan: parseFloat(formData.get('price_yuan')) || 0,
+                    price_somoni: parseFloat(formData.get('price_somoni')) || 0,
+                    cargo: formData.get('cargo'),
+                    order_date: formData.get('order_date'),
+                    status: formData.get('status'),
+                    has_client: formData.get('has_client') === 'on',
+                    client_name: formData.get('client_name') || null,
+                    client_phone: formData.get('client_phone') || null,
+                    client_city: formData.get('client_city') || null,
+                    client_paid_product: formData.get('client_paid_product') === 'on',
+                    client_paid_delivery: formData.get('client_paid_delivery') === 'on',
+                    estimated_delivery_price: parseFloat(formData.get('estimated_delivery_price')) || 0,
+                    track_code: formData.get('track_code') || null,
+                    shipping_date: formData.get('shipping_date') || null,
+                    expected_arrival_date: formData.get('expected_arrival_date') || null,
+                    final_delivery_price: parseFloat(formData.get('final_delivery_price')) || 0,
+                    weight: parseFloat(formData.get('weight')) || 0,
+                    received_date: formData.get('received_date') || null
+                };
+
+                try {
+                    let result;
+                    if (order) {
+                        // Редактирование существующего заказа
+                        result = await supabase
+                            .from('orders')
+                            .update(newOrder)
+                            .eq('id', order.id)
+                            .select();
+                    } else {
+                        // Создание нового заказа
+                        result = await supabase
+                            .from('orders')
+                            .insert([newOrder])
+                            .select();
+                    }
+
+                    if (result.error) {
+                        throw new Error(result.error.message);
+                    }
+
+                    if (result.data) {
+                        const savedOrder = result.data[0];
+                        
+                        // АВТОМАТИЧЕСКОЕ ДОБАВЛЕНИЕ В НАЛИЧИЕ ПРИ СТАТУСЕ "ПОЛУЧЕН"
+                        if (newOrder.status === 'received' && !newOrder.has_client) {
+                            await addToInventory(savedOrder);
+                        }
+
+                        if (order) {
+                            // Обновляем существующий заказ
+                            orders = orders.map(o => o.id === order.id ? {...o, ...newOrder} : o);
+                        } else {
+                            // Добавляем новый заказ
+                            orders.push(savedOrder);
+                        }
+                        
+                        updateCounts();
+                        renderCurrentTab();
+                        modal.remove();
+                        alert('✅ Заказ успешно сохранен!');
+                    }
+                    
+                } catch (error) {
+                    console.error('Ошибка сохранения заказа:', error);
+                    alert('❌ Ошибка сохранения: ' + error.message);
+                }
+            };
+
+            document.body.appendChild(modal);
+        }
+
+        // ФУНКЦИЯ АВТОМАТИЧЕСКОГО ДОБАВЛЕНИЯ В НАЛИЧИЕ
+        async function addToInventory(order) {
+            try {
+                // Проверяем, нет ли уже этого товара в наличии
+                const existingItem = inventory.find(i => i.order_id === order.id);
+                
+                if (existingItem) {
+                    // Если уже есть - обновляем количество
+                    const newQuantity = (existingItem.quantity || 1) + 1;
+                    const { error } = await supabase
+                        .from('inventory')
+                        .update({ quantity: newQuantity })
+                        .eq('id', existingItem.id);
+                    
+                    if (!error) {
+                        existingItem.quantity = newQuantity;
+                    }
+                } else {
+                    // Если нет - создаем новую запись
+                    const newInventoryItem = {
+                        order_id: order.id,
+                        name: order.product_name,
+                        quantity: 1,
+                        cost_price: (parseFloat(order.price_somoni) + parseFloat(order.final_delivery_price || 0)).toFixed(2),
+                        weight: order.weight,
+                        added_date: order.received_date || new Date().toISOString().split('T')[0],
+                        order_number: order.order_number,
+                        photo_url: order.photo_url
+                    };
+
+                    const { data, error } = await supabase
+                        .from('inventory')
+                        .insert([newInventoryItem])
+                        .select();
+
+                    if (!error && data) {
+                        inventory.push(data[0]);
+                        console.log('✅ Товар автоматически добавлен в наличие');
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка добавления в наличие:', error);
+            }
+        }
+
+        // Вспомогательные функции для переключения полей
+        function toggleClientFields(checkbox) {
+            const clientFields = checkbox.closest('form').querySelector('#clientFields');
+            clientFields.classList.toggle('hidden', !checkbox.checked);
+        }
+
+        function toggleStatusFields(select) {
+            const status = select.value;
+            const form = select.closest('form');
+            const transitFields = form.querySelector('#transitFields');
+            const receivedFields = form.querySelector('#receivedFields');
+            
+            transitFields.classList.toggle('hidden', !['in_transit', 'received'].includes(status));
+            receivedFields.classList.toggle('hidden', status !== 'received');
+        }
+
+        function openSaleModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content max-w-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">💰 Новая продажа</h3>
+                        <button onclick="this.closest('.modal').remove()" class="text-2xl">&times;</button>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <p class="text-yellow-800">Функция продаж будет доступна после настройки базы данных</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function openPersonalOrderModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content max-w-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">🏠 Личный заказ</h3>
+                        <button onclick="this.closest('.modal').remove()" class="text-2xl">&times;</button>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <p class="text-yellow-800">Функция личных заказов будет доступна после настройки базы данных</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function editOrder(id) {
+            openOrderModal(id);
+        }
+
+        async function deleteOrder(id) {
+            if (confirm('Удалить заказ?')) {
+                try {
+                    const { error } = await supabase
+                        .from('orders')
+                        .delete()
+                        .eq('id', id);
+
+                    if (error) throw error;
+
+                    orders = orders.filter(o => o.id !== id);
+                    updateCounts();
+                    renderCurrentTab();
+                    alert('✅ Заказ удален!');
+                    
+                } catch (error) {
+                    alert('❌ Ошибка удаления: ' + error.message);
+                }
+            }
+        }
+
+        async function deletePersonalOrder(id) {
+            if (confirm('Удалить личный заказ?')) {
+                alert('Функция будет доступна после настройки базы данных');
+            }
+        }
+    </script>
+</body>
+</html>

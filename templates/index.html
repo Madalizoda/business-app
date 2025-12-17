@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Заказы - Мой Бизнес</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .mobile-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+        }
+        .mobile-form .form-control {
+            margin-bottom: 8px;
+        }
+        .nav-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .nav-buttons .btn {
+            font-size: 0.8rem;
+            padding: 6px 8px;
+        }
+        .status-fields {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .status-fields-mobile {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        /* Скрываем таблицу на мобильных, показываем карточки */
+        @media (max-width: 768px) {
+            .desktop-table { display: none; }
+            .mobile-cards { display: block; }
+            .desktop-view { display: none; }
+        }
+        @media (min-width: 769px) {
+            .mobile-cards { display: none; }
+            .mobile-view { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-3">
+        <h4 class="text-center mb-3">📦 Мои Заказы</h4>
+        
+        <!-- Навигация для мобильных -->
+        <div class="nav-buttons">
+            <a href="/dashboard" class="btn btn-outline-secondary">📈</a>
+            <a href="/warehouse" class="btn btn-outline-warning">🏪</a>
+            <a href="/sales" class="btn btn-outline-success">💰</a>
+            <a href="/customers" class="btn btn-outline-info">👥</a>
+        </div>
+
+        <!-- Курс валют -->
+        <div class="alert alert-info py-2 mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <small><strong>💰 Курс:</strong> 1 CNY = {{ current_rate }} TJS</small>
+                <small>🔄</small>
+            </div>
+        </div>
+        
+        <!-- Форма добавления товара -->
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <h6 class="card-title">➕ Новый заказ</h6>
+                <form method="POST" action="/add_product" class="mobile-form">
+                    <div class="row g-1">
+                        <div class="col-6">
+                            <input type="text" name="order_number" class="form-control form-control-sm" placeholder="№ заказа" required>
+                        </div>
+                        <div class="col-6">
+                            <input type="text" name="name" class="form-control form-control-sm" placeholder="Название" required>
+                        </div>
+                        <div class="col-6">
+                            <input type="number" step="0.01" name="price_cny" class="form-control form-control-sm" placeholder="Цена ¥" required>
+                        </div>
+                        <div class="col-6">
+                            <input type="number" name="quantity" class="form-control form-control-sm" placeholder="Кол-во" value="1" required>
+                        </div>
+                        <div class="col-6">
+                            <input type="text" name="cargo" class="form-control form-control-sm" placeholder="Карго">
+                        </div>
+                        <div class="col-6">
+                            <input type="text" name="customer_name" class="form-control form-control-sm" placeholder="Клиент">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary btn-sm w-100 mt-1">Добавить заказ</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Панель поиска и фильтров -->
+        <div class="desktop-view">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row g-3 align-items-center">
+                        <!-- Поиск -->
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text">🔍</span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       placeholder="Поиск по №, названию, клиенту..." 
+                                       id="searchInput"
+                                       value="{{ search_query }}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="performSearch()">
+                                    Найти
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Фильтр по статусу -->
+                        <div class="col-md-3">
+                            <select class="form-select" id="statusFilter" onchange="performSearch()">
+                                <option value="">Все статусы</option>
+                                <option value="ordered" {% if status_filter == 'ordered' %}selected{% endif %}>Заказан</option>
+                                <option value="in_china" {% if status_filter == 'in_china' %}selected{% endif %}>В Китае</option>
+                                <option value="in_transit" {% if status_filter == 'in_transit' %}selected{% endif %}>В пути</option>
+                                <option value="received" {% if status_filter == 'received' %}selected{% endif %}>На складе</option>
+                                <option value="sold" {% if status_filter == 'sold' %}selected{% endif %}>Продано</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Сортировка -->
+                        <div class="col-md-3">
+                            <select class="form-select" id="sortSelect" onchange="performSearch()">
+                                <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>По дате</option>
+                                <option value="order_number" {% if sort_by == 'order_number' %}selected{% endif %}>По № заказа</option>
+                                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>По названию</option>
+                                <option value="price" {% if sort_by == 'price' %}selected{% endif %}>По цене</option>
+                                <option value="status" {% if sort_by == 'status' %}selected{% endif %}>По статусу</option>
+                                <option value="customer" {% if sort_by == 'customer' %}selected{% endif %}>По клиенту</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Порядок сортировки -->
+                        <div class="col-md-2">
+                            <select class="form-select" id="orderSelect" onchange="performSearch()">
+                                <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>По убыванию</option>
+                                <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>По возрастанию</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Сброс фильтров -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    Найдено: {{ products|length }} заказов
+                                    {% if search_query or status_filter %}
+                                    <span class="badge bg-info ms-2">Фильтры активны</span>
+                                    {% endif %}
+                                </small>
+                                {% if search_query or status_filter %}
+                                <a href="/orders" class="btn btn-outline-secondary btn-sm">Сбросить фильтры</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Мобильная версия поиска -->
+        <div class="mobile-view">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <!-- Поиск -->
+                    <div class="mb-2">
+                        <div class="input-group input-group-sm">
+                            <input type="text" 
+                                   class="form-control" 
+                                   placeholder="Поиск..." 
+                                   id="searchInputMobile"
+                                   value="{{ search_query }}">
+                            <button class="btn btn-outline-primary" type="button" onclick="performSearchMobile()">
+                                🔍
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2">
+                        <!-- Фильтр по статусу -->
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="statusFilterMobile" onchange="performSearchMobile()">
+                                <option value="">Все статусы</option>
+                                <option value="ordered" {% if status_filter == 'ordered' %}selected{% endif %}>Заказан</option>
+                                <option value="in_china" {% if status_filter == 'in_china' %}selected{% endif %}>В Китае</option>
+                                <option value="in_transit" {% if status_filter == 'in_transit' %}selected{% endif %}>В пути</option>
+                                <option value="received" {% if status_filter == 'received' %}selected{% endif %}>На складе</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Сортировка -->
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="sortSelectMobile" onchange="performSearchMobile()">
+                                <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>По дате</option>
+                                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>По названию</option>
+                                <option value="status" {% if sort_by == 'status' %}selected{% endif %}>По статусу</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Сброс фильтров -->
+                    {% if search_query or status_filter %}
+                    <div class="mt-2 text-center">
+                        <a href="/orders" class="btn btn-outline-secondary btn-sm w-100">Сбросить фильтры</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБЛИЦА для десктопа -->
+        <div class="desktop-view">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>№ Заказа</th>
+                            <th>Название</th>
+                            <th>Цена (¥/TJS)</th>
+                            <th>Кол-во</th>
+                            <th>Статус</th>
+                            <th>Клиент</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>{{ product.order_number }}</td>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.price_cny|round(2) }}¥ / {{ product.price_tjs|round(2) }}TJS</td>
+                            <td>{{ product.quantity }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if product.status == 'ordered' %}bg-secondary
+                                    {% elif product.status == 'in_china' %}bg-warning
+                                    {% elif product.status == 'in_transit' %}bg-info
+                                    {% elif product.status == 'received' %}bg-primary
+                                    {% else %}bg-success{% endif %}">
+                                    {{ product.status }}
+                                </span>
+                            </td>
+                            <td>{{ product.customer_name or '-' }}</td>
+                            <td>
+                                <form method="POST" action="/update_status/{{ product.id }}" class="d-flex flex-column gap-1">
+                                    <select name="status" class="form-select form-select-sm" onchange="showStatusFields(this, {{ product.id }})">
+                                        <option value="ordered" {% if product.status == 'ordered' %}selected{% endif %}>Заказан</option>
+                                        <option value="in_china" {% if product.status == 'in_china' %}selected{% endif %}>В Китае</option>
+                                        <option value="in_transit" {% if product.status == 'in_transit' %}selected{% endif %}>В пути</option>
+                                        <option value="received" {% if product.status == 'received' %}selected{% endif %}>Получен</option>
+                                    </select>
+                                    
+                                    <!-- Поля для статуса "В пути" -->
+                                    <div id="in_transit_fields_{{ product.id }}" class="status-fields" 
+                                         style="display: {% if product.status == 'in_transit' %}block{% else %}none{% endif %};">
+                                        <input type="text" name="track_code" class="form-control form-control-sm" 
+                                               placeholder="Трек код" value="{{ product.track_code or '' }}">
+                                    </div>
+                                    
+                                    <!-- Поля для статуса "Получен" -->
+                                    <div id="received_fields_{{ product.id }}" class="status-fields"
+                                         style="display: {% if product.status == 'received' %}block{% else %}none{% endif %};">
+                                        <input type="number" step="0.01" name="shipping_price" class="form-control form-control-sm" 
+                                               placeholder="Цена доставки" value="{{ product.shipping_price or '' }}">
+                                        <input type="number" step="0.01" name="weight" class="form-control form-control-sm" 
+                                               placeholder="Вес (кг)" value="{{ product.weight or '' }}">
+                                        
+                                        <div class="form-check form-check-sm">
+                                            <input class="form-check-input" type="checkbox" name="customer_paid_product" 
+                                                   id="paid_product_{{ product.id }}" {% if product.customer_paid_product %}checked{% endif %}>
+                                            <label class="form-check-label" for="paid_product_{{ product.id }}">
+                                                Клиент оплатил товар
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-check-sm">
+                                            <input class="form-check-input" type="checkbox" name="customer_paid_shipping" 
+                                                   id="paid_shipping_{{ product.id }}" {% if product.customer_paid_shipping %}checked{% endif %}>
+                                            <label class="form-check-label" for="paid_shipping_{{ product.id }}">
+                                                Клиент оплатил доставку
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary btn-sm">Обновить</button>
+                                </form>
+                                
+                                <!-- Отображение информации о статусе -->
+                                <div class="mt-2 small">
+                                    {% if product.order_date %}
+                                    <div>📅 Заказан: {{ product.order_date.strftime('%d.%m.%Y') }}</div>
+                                    {% endif %}
+                                    {% if product.shipping_date %}
+                                    <div>🚚 Отправлен: {{ product.shipping_date.strftime('%d.%m.%Y') }}</div>
+                                    {% endif %}
+                                    {% if product.receive_date %}
+                                    <div>📦 Получен: {{ product.receive_date.strftime('%d.%m.%Y') }}</div>
+                                    {% endif %}
+                                    {% if product.track_code %}
+                                    <div>📮 Трек: {{ product.track_code }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Кнопка удаления -->
+                                <a href="/delete_product/{{ product.id }}" 
+                                   class="btn btn-danger btn-sm mt-1"
+                                   onclick="return confirm('Удалить этот товар?')">
+                                    🗑️ Удалить
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- КАРТОЧКИ для мобильных -->
+        <div class="mobile-view">
+            {% for product in products %}
+            <div class="mobile-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <strong>{{ product.order_number }}</strong>
+                        <div class="text-muted small">{{ product.name }}</div>
+                    </div>
+                    <span class="badge 
+                        {% if product.status == 'ordered' %}bg-secondary
+                        {% elif product.status == 'in_china' %}bg-warning
+                        {% elif product.status == 'in_transit' %}bg-info
+                        {% elif product.status == 'received' %}bg-primary
+                        {% else %}bg-success{% endif %} status-badge">
+                        {{ product.status }}
+                    </span>
+                </div>
+                
+                <div class="row small text-muted mb-2">
+                    <div class="col-6">
+                        💰 {{ product.price_cny|round(2) }}¥<br>
+                        {{ product.price_tjs|round(2) }}TJS
+                    </div>
+                    <div class="col-6">
+                        📦 {{ product.quantity }} шт.<br>
+                        👤 {{ product.customer_name or '-' }}
+                    </div>
+                </div>
+
+                <!-- Информация о статусе -->
+                <div class="mb-2 small">
+                    {% if product.order_date %}
+                    <div>📅 Заказан: {{ product.order_date.strftime('%d.%m.%Y') }}</div>
+                    {% endif %}
+                    {% if product.shipping_date %}
+                    <div>🚚 Отправлен: {{ product.shipping_date.strftime('%d.%m.%Y') }}</div>
+                    {% endif %}
+                    {% if product.receive_date %}
+                    <div>📦 Получен: {{ product.receive_date.strftime('%d.%m.%Y') }}</div>
+                    {% endif %}
+                    {% if product.track_code %}
+                    <div>📮 Трек: {{ product.track_code }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Форма смены статуса -->
+                <form method="POST" action="/update_status/{{ product.id }}">
+                    <select name="status" class="form-select form-select-sm mb-1" onchange="showStatusFieldsMobile(this, {{ product.id }})">
+                        <option value="ordered" {% if product.status == 'ordered' %}selected{% endif %}>Заказан</option>
+                        <option value="in_china" {% if product.status == 'in_china' %}selected{% endif %}>В Китае</option>
+                        <option value="in_transit" {% if product.status == 'in_transit' %}selected{% endif %}>В пути</option>
+                        <option value="received" {% if product.status == 'received' %}selected{% endif %}>Получен</option>
+                    </select>
+                    
+                    <!-- Поля для статуса "В пути" -->
+                    <div id="in_transit_fields_mobile_{{ product.id }}" class="status-fields-mobile" 
+                         style="display: {% if product.status == 'in_transit' %}block{% else %}none{% endif %};">
+                        <input type="text" name="track_code" class="form-control form-control-sm mb-1" 
+                               placeholder="Трек код" value="{{ product.track_code or '' }}">
+                    </div>
+                    
+                    <!-- Поля для статуса "Получен" -->
+                    <div id="received_fields_mobile_{{ product.id }}" class="status-fields-mobile"
+                         style="display: {% if product.status == 'received' %}block{% else %}none{% endif %};">
+                        <input type="number" step="0.01" name="shipping_price" class="form-control form-control-sm mb-1" 
+                               placeholder="Цена доставки" value="{{ product.shipping_price or '' }}">
+                        <input type="number" step="0.01" name="weight" class="form-control form-control-sm mb-1" 
+                               placeholder="Вес (кг)" value="{{ product.weight or '' }}">
+                        
+                        <div class="form-check form-check-sm mb-1">
+                            <input class="form-check-input" type="checkbox" name="customer_paid_product" 
+                                   id="paid_product_mobile_{{ product.id }}" {% if product.customer_paid_product %}checked{% endif %}>
+                            <label class="form-check-label" for="paid_product_mobile_{{ product.id }}">
+                                Оплатил товар
+                            </label>
+                        </div>
+                        <div class="form-check form-check-sm mb-1">
+                            <input class="form-check-input" type="checkbox" name="customer_paid_shipping" 
+                                   id="paid_shipping_mobile_{{ product.id }}" {% if product.customer_paid_shipping %}checked{% endif %}>
+                            <label class="form-check-label" for="paid_shipping_mobile_{{ product.id }}">
+                                Оплатил доставку
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-sm w-100">Обновить статус</button>
+                </form>
+
+                <!-- Кнопка удаления -->
+                <div class="text-center mt-2">
+                    <a href="/delete_product/{{ product.id }}" 
+                       class="btn btn-danger btn-sm"
+                       onclick="return confirm('Удалить этот товар?')">
+                        🗑️ Удалить
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Функции для десктопной версии
+        function performSearch() {
+            const search = document.getElementById('searchInput').value;
+            const status = document.getElementById('statusFilter').value;
+            const sort = document.getElementById('sortSelect').value;
+            const order = document.getElementById('orderSelect').value;
+            
+            let url = `/orders?search=${encodeURIComponent(search)}&status=${status}&sort=${sort}&order=${order}`;
+            window.location.href = url;
+        }
+        
+        // Функции для мобильной версии
+        function performSearchMobile() {
+            const search = document.getElementById('searchInputMobile').value;
+            const status = document.getElementById('statusFilterMobile').value;
+            const sort = document.getElementById('sortSelectMobile').value;
+            
+            let url = `/orders?search=${encodeURIComponent(search)}&status=${status}&sort=${sort}&order=desc`;
+            window.location.href = url;
+        }
+        
+        // Поиск при нажатии Enter
+        document.getElementById('searchInput')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') performSearch();
+        });
+        
+        document.getElementById('searchInputMobile')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') performSearchMobile();
+        });
+
+        // Функции для управления полями статусов (десктоп)
+        function showStatusFields(select, productId) {
+            // Скрываем все поля
+            document.querySelectorAll('.status-fields').forEach(field => {
+                field.style.display = 'none';
+            });
+            
+            // Показываем нужные поля
+            const status = select.value;
+            if (status === 'in_transit') {
+                document.getElementById('in_transit_fields_' + productId).style.display = 'block';
+            } else if (status === 'received') {
+                document.getElementById('received_fields_' + productId).style.display = 'block';
+            }
+        }
+
+        // Функции для управления полями статусов (мобильные)
+        function showStatusFieldsMobile(select, productId) {
+            // Скрываем все поля
+            document.querySelectorAll('.status-fields-mobile').forEach(field => {
+                field.style.display = 'none';
+            });
+            
+            // Показываем нужные поля
+            const status = select.value;
+            if (status === 'in_transit') {
+                document.getElementById('in_transit_fields_mobile_' + productId).style.display = 'block';
+            } else if (status === 'received') {
+                document.getElementById('received_fields_mobile_' + productId).style.display = 'block';
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Автоматически показываем поля для текущего статуса
+            document.querySelectorAll('select[name="status"]').forEach(select => {
+                const productId = select.getAttribute('onchange').match(/\d+/)[0];
+                if (select.id.includes('mobile')) {
+                    showStatusFieldsMobile(select, productId);
+                } else {
+                    showStatusFields(select, productId);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

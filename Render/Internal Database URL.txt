@@ -1,0 +1,1 @@
+postgresql://madalizoda:daHKR74EWEXY4ApqA3NLBGsx0vzGPp8j@dpg-d51vc47fte5s73ae202g-a/business_db_xpqo

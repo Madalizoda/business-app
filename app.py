@@ -327,7 +327,8 @@ def index():
     marketplaces = [m[0] for m in marketplaces if m[0]]
 
     # Получаем всех клиентов для автодополнения
-    customers = Customer.query.all()
+    customers_query = Customer.query.all()
+    customers = [{'id': c.id, 'name': c.name, 'is_debtor': c.is_debtor, 'debt_amount': c.debt_amount or 0} for c in customers_query]
 
     return render_template('index.html',
                            products=products,

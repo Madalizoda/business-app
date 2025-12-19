@@ -340,7 +340,6 @@ def index():
                            sort_order=sort_order,
                            customers=customers)
 
-
 # Добавление товара
 @app.route('/add_product', methods=['POST'])
 @login_required

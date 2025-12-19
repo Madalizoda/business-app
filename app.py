@@ -19,9 +19,11 @@ app.secret_key = 'madalizoda-secret-key-2024-business-app'
 # Определяем базу данных (PostgreSQL для продакшн, SQLite для локальной разработки)
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
-    # Render использует postgres://, но SQLAlchemy требует postgresql://
+    # Render использует postgres://, заменяем на postgresql+pg8000://
     if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+    elif database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     # Для локальной разработки

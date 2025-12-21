@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -105,6 +105,7 @@
             margin-bottom: 5px;
             color: #333;
             font-weight: 500;
+            font-size: 0.9em;
         }
 
         .form-group input, .form-group select {
@@ -118,6 +119,12 @@
         .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
+        }
+
+        .form-group small {
+            color: #6c757d;
+            font-size: 0.85em;
+            margin-top: 3px;
         }
 
         .checkbox-group {
@@ -158,6 +165,12 @@
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
 
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            width: auto;
+        }
+
         .filters {
             background: #f8f9fa;
             padding: 20px;
@@ -189,14 +202,16 @@
         }
 
         th {
-            padding: 15px;
+            padding: 15px 10px;
             text-align: left;
             font-weight: 600;
+            font-size: 0.9em;
         }
 
         td {
-            padding: 15px;
+            padding: 15px 10px;
             border-bottom: 1px solid #e0e0e0;
+            vertical-align: top;
         }
 
         tbody tr:hover {
@@ -206,8 +221,9 @@
         .status-badge {
             padding: 5px 15px;
             border-radius: 20px;
-            font-size: 0.9em;
+            font-size: 0.85em;
             font-weight: 600;
+            display: inline-block;
         }
 
         .status-ordered { background: #fff3cd; color: #856404; }
@@ -219,14 +235,16 @@
         .marketplace-badge {
             padding: 3px 10px;
             border-radius: 12px;
-            font-size: 0.85em;
+            font-size: 0.8em;
             background: #e7f3ff;
             color: #0066cc;
             display: inline-block;
+            margin-top: 3px;
         }
 
         .payment-status {
-            font-size: 0.85em;
+            font-size: 0.8em;
+            margin-top: 5px;
         }
 
         .payment-paid {
@@ -240,23 +258,32 @@
         }
 
         .product-image {
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             object-fit: cover;
             border-radius: 8px;
         }
 
         .action-btn {
-            padding: 5px 15px;
+            padding: 5px 12px;
             border-radius: 5px;
             text-decoration: none;
-            font-size: 0.9em;
+            font-size: 0.85em;
             margin: 2px;
             display: inline-block;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .btn-edit { background: #007bff; color: white; }
-        .btn-delete { background: #dc3545; color: white; }
+        .btn-delete { 
+            background: #dc3545; 
+            color: white; 
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
 
         .empty-state {
             text-align: center;
@@ -267,16 +294,6 @@
         .empty-state h3 {
             font-size: 1.5em;
             margin-bottom: 10px;
-        }
-
-        @media (max-width: 768px) {
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .filters-grid {
-                grid-template-columns: 1fr;
-            }
         }
 
         .autocomplete {
@@ -312,10 +329,90 @@
         .debtor-warning {
             background: #fff3cd;
             color: #856404;
-            padding: 5px 10px;
+            padding: 3px 8px;
             border-radius: 5px;
+            font-size: 0.8em;
+            margin-left: 8px;
+        }
+
+        .status-form {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .status-form select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-form input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-form .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
             font-size: 0.85em;
-            margin-left: 10px;
+        }
+
+        .status-form .checkbox-item input {
+            width: auto;
+            margin: 0;
+        }
+
+        .status-fields {
+            margin-top: 8px;
+        }
+
+        .product-link {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 0.85em;
+            display: inline-block;
+            margin-top: 3px;
+        }
+
+        .product-link:hover {
+            text-decoration: underline;
+        }
+
+        .info-small {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th, td {
+                padding: 8px 5px;
+                font-size: 0.85em;
+            }
+
+            .product-image {
+                width: 40px;
+                height: 40px;
+            }
         }
     </style>
 </head>
@@ -364,7 +461,7 @@
                         <div class="form-group">
                             <label>🔗 Ссылка на товар</label>
                             <input type="url" name="product_url" placeholder="https://1688.com/...">
-                            <small style="color: #6c757d;">Маркетплейс определится автоматически</small>
+                            <small>Маркетплейс определится автоматически</small>
                         </div>
                         <div class="form-group">
                             <label>🖼️ Ссылка на фото</label>
@@ -402,9 +499,9 @@
             <div class="filters">
                 <form method="GET">
                     <div class="filters-grid">
-                        <input type="text" name="search" placeholder="🔍 Поиск..." value="{{ search_query }}">
+                        <input type="text" name="search" placeholder="🔍 Поиск..." value="{{ search_query }}" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
                         
-                        <select name="status">
+                        <select name="status" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
                             <option value="">Все статусы</option>
                             <option value="ordered" {% if status_filter == 'ordered' %}selected{% endif %}>Заказан</option>
                             <option value="in_china" {% if status_filter == 'in_china' %}selected{% endif %}>В Китае</option>
@@ -413,7 +510,7 @@
                             <option value="sold" {% if status_filter == 'sold' %}selected{% endif %}>Продан</option>
                         </select>
 
-                        <select name="marketplace">
+                        <select name="marketplace" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
                             <option value="">Все маркетплейсы</option>
                             {% for marketplace in marketplaces %}
                             <option value="{{ marketplace }}" {% if marketplace_filter == marketplace %}selected{% endif %}>{{ marketplace }}</option>
@@ -430,16 +527,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Фото</th>
-                            <th>№ Заказа</th>
+                            <th style="width: 80px;">Фото</th>
+                            <th style="width: 100px;">№ Заказа</th>
                             <th>Название</th>
-                            <th>Маркетплейс</th>
-                            <th>Цена (¥/TJS)</th>
-                            <th>Кол-во</th>
-                            <th>Статус</th>
-                            <th>Клиент</th>
-                            <th>Оплата</th>
-                            <th>Действия</th>
+                            <th style="width: 120px;">Цена</th>
+                            <th style="width: 60px;">Кол-во</th>
+                            <th style="width: 100px;">Клиент</th>
+                            <th style="width: 300px;">Статус и управление</th>
+                            <th style="width: 80px;">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -449,23 +544,25 @@
                                 {% if product.product_image %}
                                 <img src="{{ product.product_image }}" class="product-image" alt="{{ product.name }}">
                                 {% else %}
-                                📦
+                                <div style="width: 60px; height: 60px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2em;">📦</div>
                                 {% endif %}
                             </td>
-                            <td>{{ product.order_number }}</td>
+                            <td><strong>{{ product.order_number }}</strong></td>
                             <td>
                                 {{ product.name }}
+                                {% if product.marketplace %}
+                                <br><span class="marketplace-badge">{{ product.marketplace }}</span>
+                                {% endif %}
                                 {% if product.product_url %}
-                                <br><a href="{{ product.product_url }}" target="_blank" style="font-size: 0.85em; color: #007bff;">🔗 Ссылка</a>
+                                <br><a href="{{ product.product_url }}" target="_blank" class="product-link">🔗 Ссылка на товар</a>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if product.marketplace %}
-                                <span class="marketplace-badge">{{ product.marketplace }}</span>
-                                {% endif %}
+                                <strong>{{ "%.2f"|format(product.price_cny) }} ¥</strong>
+                                <br>{{ "%.2f"|format(product.price_tjs) }} с
                             </td>
-                            <td>{{ "%.2f"|format(product.price_cny) }} ¥<br>{{ "%.2f"|format(product.price_tjs) }} с</td>
                             <td>{{ product.quantity }}</td>
+                            <td>{{ product.customer_name or '-' }}</td>
                             <td>
                                 <span class="status-badge status-{{ product.status }}">
                                     {% if product.status == 'ordered' %}Заказан
@@ -475,18 +572,65 @@
                                     {% elif product.status == 'sold' %}Продан
                                     {% endif %}
                                 </span>
-                            </td>
-                            <td>{{ product.customer_name or '-' }}</td>
-                            <td class="payment-status">
-                                Товар: <span class="{% if product.customer_paid_product %}payment-paid{% else %}payment-unpaid{% endif %}">
-                                    {{ '✅ Оплачен' if product.customer_paid_product else '❌ Не оплачен' }}
-                                </span><br>
-                                Доставка: <span class="{% if product.customer_paid_shipping %}payment-paid{% else %}payment-unpaid{% endif %}">
-                                    {{ '✅ Оплачена' if product.customer_paid_shipping else '❌ Не оплачена' }}
-                                </span>
+
+                                <!-- Форма изменения статуса -->
+                                <form method="POST" action="{{ url_for('update_status', product_id=product.id) }}" class="status-form">
+                                    <select name="status" onchange="showStatusFields(this, {{ product.id }})">
+                                        <option value="ordered" {% if product.status == 'ordered' %}selected{% endif %}>Заказан</option>
+                                        <option value="in_china" {% if product.status == 'in_china' %}selected{% endif %}>В Китае</option>
+                                        <option value="in_transit" {% if product.status == 'in_transit' %}selected{% endif %}>В пути</option>
+                                        <option value="received" {% if product.status == 'received' %}selected{% endif %}>Получен</option>
+                                    </select>
+                                    
+                                    <!-- Поля для "В пути" -->
+                                    <div id="transit_{{ product.id }}" class="status-fields" style="display: {% if product.status == 'in_transit' %}block{% else %}none{% endif %};">
+                                        <input type="text" name="track_code" placeholder="Трек-код" value="{{ product.track_code or '' }}">
+                                    </div>
+                                    
+                                    <!-- Поля для "Получен" -->
+                                    <div id="received_{{ product.id }}" class="status-fields" style="display: {% if product.status == 'received' %}block{% else %}none{% endif %};">
+                                        <input type="number" step="0.01" name="shipping_price" placeholder="Цена доставки" value="{{ product.shipping_price or '' }}">
+                                        <input type="number" step="0.01" name="weight" placeholder="Вес (кг)" value="{{ product.weight or '' }}">
+                                        
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" name="customer_paid_product" id="paid_prod_{{ product.id }}" {% if product.customer_paid_product %}checked{% endif %}>
+                                            <label for="paid_prod_{{ product.id }}">Оплатил товар</label>
+                                        </div>
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" name="customer_paid_shipping" id="paid_ship_{{ product.id }}" {% if product.customer_paid_shipping %}checked{% endif %}>
+                                            <label for="paid_ship_{{ product.id }}">Оплатил доставку</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-sm">Обновить</button>
+                                </form>
+
+                                <!-- Информация -->
+                                <div class="info-small">
+                                    {% if product.order_date %}
+                                    📅 {{ product.order_date.strftime('%d.%m.%Y') }}
+                                    {% endif %}
+                                    {% if product.track_code and product.status == 'in_transit' %}
+                                    <br>📮 {{ product.track_code }}
+                                    {% endif %}
+                                    {% if product.shipping_price and product.status == 'received' %}
+                                    <br>🚚 Доставка: {{ "%.2f"|format(product.shipping_price) }} с
+                                    {% endif %}
+                                </div>
+
+                                <!-- Статус оплаты -->
+                                {% if product.customer_name %}
+                                <div class="payment-status">
+                                    Товар: <span class="{% if product.customer_paid_product %}payment-paid{% else %}payment-unpaid{% endif %}">
+                                        {{ '✅' if product.customer_paid_product else '❌' }}
+                                    </span>
+                                    | Доставка: <span class="{% if product.customer_paid_shipping %}payment-paid{% else %}payment-unpaid{% endif %}">
+                                        {{ '✅' if product.customer_paid_shipping else '❌' }}
+                                    </span>
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
-                                <a href="#" class="action-btn btn-edit">✏️</a>
                                 <a href="{{ url_for('delete_product', product_id=product.id) }}" 
                                    onclick="return confirm('Удалить заказ?')" 
                                    class="action-btn btn-delete">🗑️</a>
@@ -538,12 +682,26 @@
             });
         });
 
-        // Закрытие при клике вне
         document.addEventListener('click', function(e) {
             if (e.target !== customerInput) {
                 autocompleteList.innerHTML = '';
             }
         });
+
+        // Показ/скрытие полей в зависимости от статуса
+        function showStatusFields(select, productId) {
+            const transitFields = document.getElementById('transit_' + productId);
+            const receivedFields = document.getElementById('received_' + productId);
+            
+            transitFields.style.display = 'none';
+            receivedFields.style.display = 'none';
+            
+            if (select.value === 'in_transit') {
+                transitFields.style.display = 'block';
+            } else if (select.value === 'received') {
+                receivedFields.style.display = 'block';
+            }
+        }
     </script>
 </body>
 </html>

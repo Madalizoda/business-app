@@ -116,6 +116,10 @@
             transition: border-color 0.3s;
         }
 
+        .form-group input[type="file"] {
+            padding: 8px;
+        }
+
         .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
@@ -132,6 +136,7 @@
             gap: 20px;
             margin: 15px 0;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .checkbox-group label {
@@ -145,6 +150,19 @@
             width: 20px;
             height: 20px;
             cursor: pointer;
+        }
+
+        .checkbox-with-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-with-input input[type="number"] {
+            width: 120px;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
         }
 
         .btn {
@@ -255,6 +273,16 @@
         .payment-unpaid {
             color: #dc3545;
             font-weight: 600;
+        }
+
+        .payment-debt {
+            color: #ff6b6b;
+            font-weight: 700;
+        }
+
+        .payment-overpay {
+            color: #20c997;
+            font-weight: 700;
         }
 
         .product-image {
@@ -368,8 +396,22 @@
             font-size: 0.85em;
         }
 
-        .status-form .checkbox-item input {
+        .status-form .checkbox-item input[type="checkbox"] {
             width: auto;
+            margin: 0;
+        }
+
+        .status-form .checkbox-with-amount {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+            font-size: 0.85em;
+        }
+
+        .status-form .checkbox-with-amount input[type="number"] {
+            width: 100px;
+            padding: 5px;
             margin: 0;
         }
 
@@ -393,6 +435,20 @@
             font-size: 0.8em;
             color: #6c757d;
             margin-top: 5px;
+        }
+
+        .history-info {
+            font-size: 0.8em;
+            color: #495057;
+            margin-top: 8px;
+            padding: 8px;
+            background: #fff;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+        }
+
+        .history-info div {
+            margin: 3px 0;
         }
 
         @media (max-width: 768px) {
@@ -437,7 +493,7 @@
 
             <div class="form-section">
                 <h2>➕ Новый заказ</h2>
-                <form method="POST" action="{{ url_for('add_product') }}">
+                <form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data">
                     <div class="form-grid">
                         <div class="form-group">
                             <label>№ заказа</label>
@@ -464,8 +520,10 @@
                             <small>Маркетплейс определится автоматически</small>
                         </div>
                         <div class="form-group">
-                            <label>🖼️ Ссылка на фото</label>
-                            <input type="url" name="product_image" placeholder="https://...">
+                            <label>🖼️ Загрузить фото товара</label>
+                            <input type="file" name="product_image_file" accept="image/*">
+                            <small>Или вставьте ссылку ниже</small>
+                            <input type="url" name="product_image" placeholder="https://..." style="margin-top: 5px;">
                         </div>
                     </div>
 
@@ -486,10 +544,13 @@
                             <input type="checkbox" name="customer_paid_product">
                             ✅ Клиент оплатил товар
                         </label>
-                        <label>
-                            <input type="checkbox" name="customer_paid_shipping">
-                            ✅ Клиент оплатил доставку
-                        </label>
+                        <div class="checkbox-with-input">
+                            <label>
+                                <input type="checkbox" name="customer_paid_shipping" id="paid_shipping_check" onchange="toggleShippingAmount()">
+                                ✅ Клиент оплатил доставку
+                            </label>
+                            <input type="number" step="0.01" name="shipping_payment_amount" id="shipping_amount" placeholder="Сумма (сом)" style="display: none;">
+                        </div>
                     </div>
 
                     <button type="submit" class="btn">Добавить заказ</button>
@@ -533,7 +594,7 @@
                             <th style="width: 120px;">Цена</th>
                             <th style="width: 60px;">Кол-во</th>
                             <th style="width: 100px;">Клиент</th>
-                            <th style="width: 300px;">Статус и управление</th>
+                            <th style="width: 350px;">Статус и управление</th>
                             <th style="width: 80px;">Действия</th>
                         </tr>
                     </thead>
@@ -596,37 +657,57 @@
                                             <input type="checkbox" name="customer_paid_product" id="paid_prod_{{ product.id }}" {% if product.customer_paid_product %}checked{% endif %}>
                                             <label for="paid_prod_{{ product.id }}">Оплатил товар</label>
                                         </div>
-                                        <div class="checkbox-item">
-                                            <input type="checkbox" name="customer_paid_shipping" id="paid_ship_{{ product.id }}" {% if product.customer_paid_shipping %}checked{% endif %}>
-                                            <label for="paid_ship_{{ product.id }}">Оплатил доставку</label>
+                                        
+                                        <div class="checkbox-with-amount">
+                                            <input type="checkbox" name="customer_paid_shipping" id="paid_ship_{{ product.id }}" {% if product.customer_paid_shipping %}checked{% endif %} onchange="toggleShippingAmountUpdate({{ product.id }})">
+                                            <label for="paid_ship_{{ product.id }}">Оплатил доставку:</label>
+                                            <input type="number" step="0.01" name="shipping_payment_amount" id="ship_amount_{{ product.id }}" placeholder="Сумма" value="{{ product.shipping_payment_amount or '' }}" style="{% if not product.customer_paid_shipping %}display: none;{% endif %}">
                                         </div>
                                     </div>
                                     
                                     <button type="submit" class="btn btn-sm">Обновить</button>
                                 </form>
 
-                                <!-- Информация -->
-                                <div class="info-small">
+                                <!-- История (всегда показываем) -->
+                                <div class="history-info">
                                     {% if product.order_date %}
-                                    📅 {{ product.order_date.strftime('%d.%m.%Y') }}
+                                    <div>📅 Заказан: {{ product.order_date.strftime('%d.%m.%Y') }}</div>
                                     {% endif %}
-                                    {% if product.track_code and product.status == 'in_transit' %}
-                                    <br>📮 {{ product.track_code }}
+                                    {% if product.shipping_date %}
+                                    <div>📤 Отправлен: {{ product.shipping_date.strftime('%d.%m.%Y') }}</div>
                                     {% endif %}
-                                    {% if product.shipping_price and product.status == 'received' %}
-                                    <br>🚚 Доставка: {{ "%.2f"|format(product.shipping_price) }} с
+                                    {% if product.track_code %}
+                                    <div>📮 Трек: {{ product.track_code }}</div>
+                                    {% endif %}
+                                    {% if product.receive_date %}
+                                    <div>📦 Получен: {{ product.receive_date.strftime('%d.%m.%Y') }}</div>
+                                    {% endif %}
+                                    {% if product.shipping_price %}
+                                    <div>🚚 Доставка: {{ "%.2f"|format(product.shipping_price) }} с</div>
+                                    {% endif %}
+                                    {% if product.weight %}
+                                    <div>⚖️ Вес: {{ "%.2f"|format(product.weight) }} кг</div>
                                     {% endif %}
                                 </div>
 
-                                <!-- Статус оплаты -->
+                                <!-- Статус оплаты с расчетом долга -->
                                 {% if product.customer_name %}
                                 <div class="payment-status">
                                     Товар: <span class="{% if product.customer_paid_product %}payment-paid{% else %}payment-unpaid{% endif %}">
-                                        {{ '✅' if product.customer_paid_product else '❌' }}
+                                        {{ '✅ Оплачен' if product.customer_paid_product else '❌ Не оплачен' }}
                                     </span>
-                                    | Доставка: <span class="{% if product.customer_paid_shipping %}payment-paid{% else %}payment-unpaid{% endif %}">
-                                        {{ '✅' if product.customer_paid_shipping else '❌' }}
+                                    <br>
+                                    Доставка: <span class="{% if product.customer_paid_shipping %}payment-paid{% else %}payment-unpaid{% endif %}">
+                                        {{ '✅ Оплачена' if product.customer_paid_shipping else '❌ Не оплачена' }}
                                     </span>
+                                    {% if product.customer_paid_shipping and product.shipping_payment_amount and product.shipping_price %}
+                                    {% set diff = product.shipping_payment_amount - product.shipping_price %}
+                                    {% if diff < 0 %}
+                                    <br><span class="payment-debt">⚠️ Долг: {{ "%.2f"|format(diff|abs) }} с</span>
+                                    {% elif diff > 0 %}
+                                    <br><span class="payment-overpay">💰 Переплата: {{ "%.2f"|format(diff) }} с (вернуть)</span>
+                                    {% endif %}
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                             </td>
@@ -688,10 +769,24 @@
             }
         });
 
+        // Показать/скрыть поле суммы оплаты доставки при добавлении
+        function toggleShippingAmount() {
+            const checkbox = document.getElementById('paid_shipping_check');
+            const amountInput = document.getElementById('shipping_amount');
+            amountInput.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        // Показать/скрыть поле суммы при обновлении статуса
+        function toggleShippingAmountUpdate(productId) {
+            const checkbox = document.getElementById('paid_ship_' + productId);
+            const amountInput = document.getElementById('ship_amount_' + productId);
+            amountInput.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
         // Показ/скрытие полей в зависимости от статуса
         function showStatusFields(select, productId) {
             const transitFields = document.getElementById('transit_' + productId);
-            const receivedFields = document.getElementById('received_' + productId);
+            const receivedFields =document.getElementById('received_' + productId);
             
             transitFields.style.display = 'none';
             receivedFields.style.display = 'none';

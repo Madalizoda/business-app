@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import requests
 from sqlalchemy import func
+from urllib.parse import urlparse
 
 # Создаем приложение
 app = Flask(__name__,
@@ -14,8 +15,21 @@ app = Flask(__name__,
 
 # Конфигурация
 app.secret_key = 'madalizoda-secret-key-2024-business-app'
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'business.db')
+
+# Определяем базу данных (PostgreSQL для продакшн, SQLite для локальной разработки)
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Render использует postgres://, заменяем на postgresql+pg8000://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+    elif database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Для локальной разработки
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'business.db')
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -51,15 +65,20 @@ class Product(db.Model):
     shipping_price = db.Column(db.Float, default=0.0)
     weight = db.Column(db.Float)
 
-    # Новые поля для улучшенного отслеживания
-    order_date = db.Column(db.DateTime, default=datetime.utcnow)  # Дата заказа
-    shipping_date = db.Column(db.DateTime)  # Дата отправки
-    receive_date = db.Column(db.DateTime)  # Дата получения
+    # Новые поля
+    product_url = db.Column(db.String(500))  # Ссылка на товар
+    product_image = db.Column(db.String(500))  # Ссылка на фото
+    marketplace = db.Column(db.String(50))  # Название маркетплейса
+
+    # Улучшенное отслеживание
+    order_date = db.Column(db.DateTime, default=datetime.utcnow)
+    shipping_date = db.Column(db.DateTime)
+    receive_date = db.Column(db.DateTime)
 
     # Система оплат
-    customer_paid_product = db.Column(db.Boolean, default=False)  # Оплатил товар
-    customer_paid_shipping = db.Column(db.Boolean, default=False)  # Оплатил доставку
-    customer_bought = db.Column(db.Boolean, default=False)  # Купил после получения
+    customer_paid_product = db.Column(db.Boolean, default=False)
+    customer_paid_shipping = db.Column(db.Boolean, default=False)
+    customer_bought = db.Column(db.Boolean, default=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -73,6 +92,12 @@ class Customer(db.Model):
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20))
     city = db.Column(db.String(100))
+
+    # Новые поля для должников
+    debt_amount = db.Column(db.Float, default=0.0)  # Сумма долга
+    is_debtor = db.Column(db.Boolean, default=False)  # Является должником
+    notes = db.Column(db.Text)  # Заметки о клиенте
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Связь с продажами
@@ -107,6 +132,33 @@ class Expense(db.Model):
 # Создание таблиц
 with app.app_context():
     db.create_all()
+
+
+# Функция для определения маркетплейса по URL
+def detect_marketplace(url):
+    if not url:
+        return 'Неизвестно'
+
+    url_lower = url.lower()
+
+    if 'pinduoduo' in url_lower or 'pdd' in url_lower:
+        return 'Pinduoduo'
+    elif '1688.com' in url_lower:
+        return '1688'
+    elif 'poizon' in url_lower or 'dewu' in url_lower:
+        return 'Poizon'
+    elif 'taobao' in url_lower:
+        return 'Taobao'
+    elif 'wildberries' in url_lower or 'wb.ru' in url_lower:
+        return 'Wildberries'
+    elif 'tmall' in url_lower:
+        return 'Tmall'
+    elif 'aliexpress' in url_lower:
+        return 'AliExpress'
+    elif 'amazon' in url_lower:
+        return 'Amazon'
+    else:
+        return 'Другой'
 
 
 # Функция для расчета курса
@@ -187,6 +239,10 @@ def dashboard():
     total_shipping = db.session.query(func.sum(Product.shipping_price)).scalar() or 0
     total_investment = db.session.query(func.sum(Product.price_tjs)).scalar() or 0
 
+    # Количество должников
+    debtors_count = Customer.query.filter_by(is_debtor=True).count()
+    total_debt = db.session.query(func.sum(Customer.debt_amount)).filter(Customer.is_debtor == True).scalar() or 0
+
     stats = {
         'total_products': total_products,
         'total_customers': total_customers,
@@ -196,7 +252,9 @@ def dashboard():
         'status_stats': status_stats,
         'popular_products': popular_products,
         'total_shipping': total_shipping,
-        'total_investment': total_investment
+        'total_investment': total_investment,
+        'debtors_count': debtors_count,
+        'total_debt': total_debt
     }
 
     return render_template('dashboard.html', stats=stats)
@@ -211,6 +269,7 @@ def index():
     # Получаем параметры поиска и сортировки
     search_query = request.args.get('search', '')
     status_filter = request.args.get('status', '')
+    marketplace_filter = request.args.get('marketplace', '')
     sort_by = request.args.get('sort', 'created_at')
     sort_order = request.args.get('order', 'desc')
 
@@ -230,6 +289,10 @@ def index():
     # Применяем фильтр по статусу
     if status_filter:
         query = query.filter(Product.status == status_filter)
+
+    # Применяем фильтр по маркетплейсу
+    if marketplace_filter:
+        query = query.filter(Product.marketplace == marketplace_filter)
 
     # Применяем сортировку
     if sort_by == 'order_number':
@@ -259,20 +322,44 @@ def index():
             product.price_tjs = product.price_cny * current_rate
             db.session.commit()
 
+    # Получаем список маркетплейсов для фильтра
+    marketplaces = db.session.query(Product.marketplace).filter(Product.marketplace != None).distinct().all()
+    marketplaces = [m[0] for m in marketplaces if m[0]]
+
+    # Получаем всех клиентов для автодополнения
+    customers_query = Customer.query.all()
+    customers = [{'id': c.id, 'name': c.name, 'is_debtor': c.is_debtor, 'debt_amount': c.debt_amount or 0} for c in customers_query]
+
     return render_template('index.html',
                            products=products,
                            current_rate=current_rate,
                            search_query=search_query,
                            status_filter=status_filter,
+                           marketplace_filter=marketplace_filter,
+                           marketplaces=marketplaces,
                            sort_by=sort_by,
-                           sort_order=sort_order)
-
+                           sort_order=sort_order,
+                           customers=customers)
 
 # Добавление товара
 @app.route('/add_product', methods=['POST'])
 @login_required
 def add_product():
     current_rate = get_exchange_rate()
+
+    # Получаем URL товара и определяем маркетплейс
+    product_url = request.form.get('product_url', '')
+    marketplace = detect_marketplace(product_url)
+
+    # Получаем или создаем клиента
+    customer_name = request.form.get('customer_name', '')
+    customer = None
+    if customer_name:
+        customer = Customer.query.filter_by(name=customer_name).first()
+        if not customer:
+            customer = Customer(name=customer_name)
+            db.session.add(customer)
+            db.session.commit()
 
     product = Product(
         order_number=request.form['order_number'],
@@ -281,7 +368,12 @@ def add_product():
         price_tjs=float(request.form['price_cny']) * current_rate,
         quantity=int(request.form['quantity']),
         cargo=request.form.get('cargo', ''),
-        customer_name=request.form.get('customer_name', '')
+        customer_name=customer_name,
+        product_url=product_url,
+        product_image=request.form.get('product_image', ''),
+        marketplace=marketplace,
+        customer_paid_product='customer_paid_product' in request.form,
+        customer_paid_shipping='customer_paid_shipping' in request.form
     )
 
     db.session.add(product)
@@ -303,7 +395,6 @@ def update_status(product_id):
         product.order_date = datetime.utcnow()
 
     elif new_status == 'in_china' and old_status == 'ordered':
-        # Товар прибыл в Китай
         pass
 
     elif new_status == 'in_transit':
@@ -357,7 +448,6 @@ def warehouse():
     elif sort_by == 'name':
         query = query.order_by(Product.name.asc() if sort_order == 'asc' else Product.name.desc())
     elif sort_by == 'cost':
-        # Сортировка по себестоимости (цена + доставка)
         products = query.all()
         products.sort(key=lambda x: (x.price_tjs or 0) + (x.shipping_price or 0),
                       reverse=(sort_order == 'desc'))
@@ -415,16 +505,13 @@ def add_sale():
 @app.route('/sales')
 @login_required
 def sales():
-    # Получаем параметры поиска и сортировки
     search_query = request.args.get('search', '')
     date_filter = request.args.get('date', '')
     sort_by = request.args.get('sort', 'sale_date')
     sort_order = request.args.get('order', 'desc')
 
-    # Базовый запрос
     query = Sale.query
 
-    # Применяем поиск
     if search_query:
         query = query.join(Product).join(Customer).filter(
             db.or_(
@@ -434,16 +521,14 @@ def sales():
             )
         )
 
-    # Применяем фильтр по дате
     if date_filter:
         try:
             filter_date = datetime.strptime(date_filter, '%Y-%m-%d')
             next_day = filter_date + timedelta(days=1)
             query = query.filter(Sale.sale_date >= filter_date, Sale.sale_date < next_day)
         except ValueError:
-            pass  # Неправильный формат даты - игнорируем фильтр
+            pass
 
-    # Применяем сортировку
     if sort_by == 'product':
         query = query.join(Product).order_by(Product.name.asc() if sort_order == 'asc' else Product.name.desc())
     elif sort_by == 'customer':
@@ -451,7 +536,6 @@ def sales():
     elif sort_by == 'price':
         query = query.order_by(Sale.sale_price.asc() if sort_order == 'asc' else Sale.sale_price.desc())
     elif sort_by == 'profit':
-        # Сортировка по прибыли требует дополнительной обработки
         sales_list = query.all()
         for sale in sales_list:
             sale.profit = sale.sale_price - calculate_cost_price(sale.product)
@@ -469,12 +553,11 @@ def sales():
                                date_filter=date_filter,
                                sort_by=sort_by,
                                sort_order=sort_order)
-    else:  # sale_date по умолчанию
+    else:
         query = query.order_by(Sale.sale_date.asc() if sort_order == 'asc' else Sale.sale_date.desc())
 
     sales_list = query.all()
 
-    # Добавляем расчет прибыли к каждой продаже
     for sale in sales_list:
         sale.profit = sale.sale_price - calculate_cost_price(sale.product)
 
@@ -496,16 +579,14 @@ def sales():
 @app.route('/customers')
 @login_required
 def customers():
-    # Получаем параметры поиска и сортировки
     search_query = request.args.get('search', '')
     city_filter = request.args.get('city', '')
+    debtor_filter = request.args.get('debtor', '')
     sort_by = request.args.get('sort', 'name')
     sort_order = request.args.get('order', 'asc')
 
-    # Базовый запрос
     query = Customer.query
 
-    # Применяем поиск
     if search_query:
         query = query.filter(
             db.or_(
@@ -515,21 +596,22 @@ def customers():
             )
         )
 
-    # Применяем фильтр по городу
     if city_filter:
         query = query.filter(Customer.city.ilike(f'%{city_filter}%'))
 
-    # Получаем клиентов ДО применения сортировки для статистики
+    if debtor_filter == 'yes':
+        query = query.filter(Customer.is_debtor == True)
+    elif debtor_filter == 'no':
+        query = query.filter(Customer.is_debtor == False)
+
     all_customers = query.all()
 
-    # Добавляем статистику для каждого клиента
     for customer in all_customers:
         customer_sales = Sale.query.filter_by(customer_id=customer.id).all()
         customer.total_orders = len(customer_sales)
         customer.total_sales = sum(sale.sale_price for sale in customer_sales)
         customer.total_profit = sum(sale.sale_price - calculate_cost_price(sale.product) for sale in customer_sales)
 
-    # Применяем сортировку к уже обработанным данным
     if sort_by == 'name':
         all_customers.sort(key=lambda x: x.name or '', reverse=(sort_order == 'desc'))
     elif sort_by == 'orders':
@@ -540,8 +622,9 @@ def customers():
         all_customers.sort(key=lambda x: x.total_profit, reverse=(sort_order == 'desc'))
     elif sort_by == 'city':
         all_customers.sort(key=lambda x: x.city or '', reverse=(sort_order == 'desc'))
+    elif sort_by == 'debt':
+        all_customers.sort(key=lambda x: x.debt_amount or 0, reverse=(sort_order == 'desc'))
 
-    # Получаем список городов для фильтра
     cities = db.session.query(Customer.city).filter(Customer.city != None).filter(Customer.city != '').distinct().all()
     cities = [city[0] for city in cities if city[0]]
 
@@ -550,6 +633,7 @@ def customers():
                            cities=cities,
                            search_query=search_query,
                            city_filter=city_filter,
+                           debtor_filter=debtor_filter,
                            sort_by=sort_by,
                            sort_order=sort_order)
 
@@ -561,7 +645,6 @@ def customer_detail(customer_id):
     customer = Customer.query.get_or_404(customer_id)
     customer_sales = Sale.query.filter_by(customer_id=customer.id).order_by(Sale.sale_date.desc()).all()
 
-    # Статистика клиента
     stats = {
         'total_orders': len(customer_sales),
         'total_sales': sum(sale.sale_price for sale in customer_sales),
@@ -579,12 +662,32 @@ def add_customer():
     customer = Customer(
         name=request.form['name'],
         phone=request.form.get('phone', ''),
-        city=request.form.get('city', '')
+        city=request.form.get('city', ''),
+        notes=request.form.get('notes', '')
     )
 
     db.session.add(customer)
     db.session.commit()
     return redirect(url_for('customers'))
+
+
+# Обновление информации о клиенте (долг)
+@app.route('/update_customer/<int:customer_id>', methods=['POST'])
+@login_required
+def update_customer(customer_id):
+    customer = Customer.query.get_or_404(customer_id)
+
+    customer.name = request.form.get('name', customer.name)
+    customer.phone = request.form.get('phone', customer.phone)
+    customer.city = request.form.get('city', customer.city)
+    customer.notes = request.form.get('notes', customer.notes)
+
+    debt_amount = request.form.get('debt_amount', 0)
+    customer.debt_amount = float(debt_amount) if debt_amount else 0
+    customer.is_debtor = customer.debt_amount > 0
+
+    db.session.commit()
+    return redirect(url_for('customer_detail', customer_id=customer_id))
 
 
 # Добавление расхода
@@ -622,17 +725,15 @@ def delete_customer(customer_id):
     return redirect(url_for('customers'))
 
 
-# Простой возврат товара
+# Возврат товара
 @app.route('/return_sale/<int:sale_id>')
 @login_required
 def return_sale(sale_id):
     sale = Sale.query.get_or_404(sale_id)
     product = sale.product
 
-    # Возвращаем товар на склад
     product.status = 'received'
 
-    # Удаляем продажу
     db.session.delete(sale)
     db.session.commit()
 
@@ -658,12 +759,23 @@ def search_customers():
         customers = Customer.query.filter(
             Customer.name.ilike(f'%{query}%')
         ).limit(10).all()
-        results = [{'id': customer.id, 'name': customer.name} for customer in customers]
+        results = [{'id': customer.id, 'name': customer.name, 'is_debtor': customer.is_debtor, 'debt_amount': customer.debt_amount} for customer in customers]
     else:
         results = []
 
     return jsonify(results)
 
 
+# Автоматическое создание базы при запуске
+def init_db():
+    with app.app_context():
+        db.create_all()
+        print("✅ База данных создана/проверена")
+
+
+# Вызываем при импорте
+init_db()
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

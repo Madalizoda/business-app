@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import requests
 from sqlalchemy import func
 from urllib.parse import urlparse
+import cloudinary
+import cloudinary.uploader
 
 # Создаем приложение
 app = Flask(__name__,
@@ -33,6 +35,13 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+# Конфигурация Cloudinary
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', 'deaxtqh2w'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY', '874589763492562'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET', 'Xf3uUJqrspJrhKW89BBWwerz1GI')
+)
 
 # Данные для аутентификации
 USERNAME = 'Madalizoda'
@@ -79,6 +88,7 @@ class Product(db.Model):
     customer_paid_product = db.Column(db.Boolean, default=False)
     customer_paid_shipping = db.Column(db.Boolean, default=False)
     customer_bought = db.Column(db.Boolean, default=False)
+    shipping_payment_amount = db.Column(db.Float, default=0.0)  # Сумма оплаты доставки клиентом
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -346,11 +356,27 @@ def index():
 @login_required
 def add_product():
     current_rate = get_exchange_rate()
-
+    
     # Получаем URL товара и определяем маркетплейс
     product_url = request.form.get('product_url', '')
     marketplace = detect_marketplace(product_url)
-
+    
+    # Обработка загрузки фото
+    product_image_url = ''
+    if 'product_image_file' in request.files:
+        file = request.files['product_image_file']
+        if file and file.filename:
+            try:
+                # Загружаем на Cloudinary
+                upload_result = cloudinary.uploader.upload(file, folder="business_products")
+                product_image_url = upload_result['secure_url']
+            except Exception as e:
+                print(f"Ошибка загрузки на Cloudinary: {e}")
+    
+    # Если не загрузили файл, проверяем ссылку
+    if not product_image_url:
+        product_image_url = request.form.get('product_image', '')
+    
     # Получаем или создаем клиента
     customer_name = request.form.get('customer_name', '')
     customer = None
@@ -370,15 +396,17 @@ def add_product():
         cargo=request.form.get('cargo', ''),
         customer_name=customer_name,
         product_url=product_url,
-        product_image=request.form.get('product_image', ''),
+        product_image=product_image_url,
         marketplace=marketplace,
         customer_paid_product='customer_paid_product' in request.form,
-        customer_paid_shipping='customer_paid_shipping' in request.form
+        customer_paid_shipping='customer_paid_shipping' in request.form,
+        shipping_payment_amount=float(request.form.get('shipping_payment_amount', 0) or 0)
     )
 
     db.session.add(product)
     db.session.commit()
     return redirect(url_for('index'))
+
 
 
 # Обновление статуса товара
@@ -412,6 +440,8 @@ def update_status(product_id):
         # Обновляем систему оплат
         product.customer_paid_product = 'customer_paid_product' in request.form
         product.customer_paid_shipping = 'customer_paid_shipping' in request.form
+        if request.form.get('shipping_payment_amount'):
+            product.shipping_payment_amount = float(request.form['shipping_payment_amount'])
 
     elif new_status == 'sold':
         product.customer_bought = True

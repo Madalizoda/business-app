@@ -387,6 +387,13 @@ def add_product():
             db.session.add(customer)
             db.session.commit()
 
+    # Получаем дату заказа (если указана, иначе текущая)
+    order_date_str = request.form.get('order_date', '')
+    if order_date_str:
+        order_date = datetime.strptime(order_date_str, '%Y-%m-%d')
+    else:
+        order_date = datetime.utcnow()
+
     product = Product(
         order_number=request.form['order_number'],
         name=request.form['name'],
@@ -400,9 +407,10 @@ def add_product():
         marketplace=marketplace,
         customer_paid_product='customer_paid_product' in request.form,
         customer_paid_shipping='customer_paid_shipping' in request.form,
-        shipping_payment_amount=float(request.form.get('shipping_payment_amount', 0) or 0)
+        shipping_payment_amount=float(request.form.get('shipping_payment_amount', 0) or 0),
+        order_date=order_date
     )
-
+    
     db.session.add(product)
     db.session.commit()
     return redirect(url_for('index'))
@@ -426,26 +434,31 @@ def update_status(product_id):
         pass
 
     elif new_status == 'in_transit':
+    # Дата отправки (если указана, иначе текущая)
+        shipping_date_str = request.form.get('shipping_date', '')
+    if shipping_date_str:
+        product.shipping_date = datetime.strptime(shipping_date_str, '%Y-%m-%d')
+    else:
         product.shipping_date = datetime.utcnow()
-        if request.form.get('track_code'):
-            product.track_code = request.form['track_code']
+    if request.form.get('track_code'):
+        product.track_code = request.form['track_code']
 
     elif new_status == 'received':
+    # Дата получения (если указана, иначе текущая)
+        receive_date_str = request.form.get('receive_date', '')
+    if receive_date_str:
+        product.receive_date = datetime.strptime(receive_date_str, '%Y-%m-%d')
+    else:
         product.receive_date = datetime.utcnow()
-        if request.form.get('shipping_price'):
-            product.shipping_price = float(request.form['shipping_price'])
-        if request.form.get('weight'):
-            product.weight = float(request.form['weight'])
+    if request.form.get('shipping_price'):
+        product.shipping_price = float(request.form['shipping_price'])
+    if request.form.get('weight'):
+        product.weight = float(request.form['weight'])
 
-        # Обновляем систему оплат
-        product.customer_paid_product = 'customer_paid_product' in request.form
-        product.customer_paid_shipping = 'customer_paid_shipping' in request.form
-        if request.form.get('shipping_payment_amount'):
-            product.shipping_payment_amount = float(request.form['shipping_payment_amount'])
-
-    elif new_status == 'sold':
-        product.customer_bought = True
-
+    product.customer_paid_product = 'customer_paid_product' in request.form
+    product.customer_paid_shipping = 'customer_paid_shipping' in request.form
+    if request.form.get('shipping_payment_amount'):
+        product.shipping_payment_amount = float(request.form['shipping_payment_amount'])
     db.session.commit()
     return redirect(url_for('index'))
 

@@ -274,13 +274,14 @@ def dashboard():
 @app.route('/orders')
 @login_required
 def index():
+    from sqlalchemy import cast, Integer
     current_rate = get_exchange_rate()
 
     # Получаем параметры поиска и сортировки
     search_query = request.args.get('search', '')
     status_filter = request.args.get('status', '')
     marketplace_filter = request.args.get('marketplace', '')
-    sort_by = request.args.get('sort', 'order_number')
+    sort_by = request.args.get('sort', 'order_number')  # По умолчанию по номеру
     sort_order = request.args.get('order', 'desc')
 
     # Базовый запрос
@@ -299,44 +300,65 @@ def index():
     # Применяем фильтр по статусу
     if status_filter:
         query = query.filter(Product.status == status_filter)
-
+    
     # Применяем фильтр по маркетплейсу
     if marketplace_filter:
         query = query.filter(Product.marketplace == marketplace_filter)
 
     # Применяем сортировку
     if sort_by == 'order_number':
-    # Сортировка по номеру заказа как по числу
-        from sqlalchemy import cast, Integer
+        # Сортировка по номеру заказа как по числу
         try:
             query = query.order_by(cast(Product.order_number, Integer).desc() if sort_order == 'desc' else cast(Product.order_number, Integer).asc())
         except:
-        # Если не получается преобразовать в число, сортируем как строку
             query = query.order_by(Product.order_number.desc() if sort_order == 'desc' else Product.order_number.asc())
+    elif sort_by == 'name':
+        query = query.order_by(Product.name.asc() if sort_order == 'asc' else Product.name.desc())
+    elif sort_by == 'price':
+        query = query.order_by(Product.price_tjs.asc() if sort_order == 'asc' else Product.price_tjs.desc())
+    elif sort_by == 'status':
+        query = query.order_by(Product.status.asc() if sort_order == 'asc' else Product.status.desc())
+    elif sort_by == 'customer':
+        query = query.order_by(Product.customer_name.asc() if sort_order == 'asc' else Product.customer_name.desc())
+    else:  # created_at
+        query = query.order_by(Product.created_at.asc() if sort_order == 'asc' else Product.created_at.desc())
+
+    products = query.all()
     
-        products = query.all()
-        customers_query = Customer.query.all()
-        customers = [{'id': c.id, 'name': c.name, 'is_debtor': c.is_debtor, 'debt_amount': c.debt_amount or 0} for c in customers_query]
+    # Получаем список маркетплейсов для фильтра
+    marketplaces = db.session.query(Product.marketplace).filter(Product.marketplace != None).distinct().all()
+    marketplaces = [m[0] for m in marketplaces if m[0]]
+    # Обновляем цены в TJS если нужно
+    for product in products:
+        if not product.price_tjs:
+            product.price_tjs = product.price_cny * current_rate
+            db.session.commit()
+    
+
+    
+    # Получаем всех клиентов для автодополнения
+    customers_query = Customer.query.all()
+    customers = [{'id': c.id, 'name': c.name, 'is_debtor': c.is_debtor, 'debt_amount': c.debt_amount or 0} for c in customers_query]
     
     # Получаем последний номер заказа для автозаполнения
-        last_order_number = 0
-        if products:
-            try:
-                last_order_number = int(products[0].order_number)
-            except:
-                pass
-    
-        return render_template('index.html',
-                               products=products,
-                               current_rate=current_rate,
-                               search_query=search_query,
-                               status_filter=status_filter,
-                               marketplace_filter=marketplace_filter,
-                               marketplaces=marketplaces,
-                               sort_by=sort_by,
-                               sort_order=sort_order,
-                               customers=customers,
-                               next_order_number=last_order_number + 1)
+    last_order_number = 0
+    if products:
+        try:
+            last_order_number = int(products[0].order_number)
+        except:
+            pass
+
+    return render_template('index.html',
+                           products=products,
+                           current_rate=current_rate,
+                           search_query=search_query,
+                           status_filter=status_filter,
+                           marketplace_filter=marketplace_filter,
+                           marketplaces=marketplaces,
+                           sort_by=sort_by,
+                           sort_order=sort_order,
+                           customers=customers,
+                           next_order_number=last_order_number + 1)
 
 # Добавление товара
 @app.route('/add_product', methods=['POST'])

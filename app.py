@@ -280,7 +280,7 @@ def index():
     search_query = request.args.get('search', '')
     status_filter = request.args.get('status', '')
     marketplace_filter = request.args.get('marketplace', '')
-    sort_by = request.args.get('sort', 'created_at')
+    sort_by = request.args.get('sort', 'order_number')
     sort_order = request.args.get('order', 'desc')
 
     # Базовый запрос
@@ -306,50 +306,37 @@ def index():
 
     # Применяем сортировку
     if sort_by == 'order_number':
-        order_column = Product.order_number
-    elif sort_by == 'name':
-        order_column = Product.name
-    elif sort_by == 'price':
-        order_column = Product.price_tjs
-    elif sort_by == 'status':
-        order_column = Product.status
-    elif sort_by == 'customer':
-        order_column = Product.customer_name
-    else:  # created_at по умолчанию
-        order_column = Product.created_at
-
-    # Порядок сортировки
-    if sort_order == 'asc':
-        query = query.order_by(order_column.asc())
-    else:
-        query = query.order_by(order_column.desc())
-
-    products = query.all()
-
-    # Обновляем цены в TJS если нужно
-    for product in products:
-        if not product.price_tjs:
-            product.price_tjs = product.price_cny * current_rate
-            db.session.commit()
-
-    # Получаем список маркетплейсов для фильтра
-    marketplaces = db.session.query(Product.marketplace).filter(Product.marketplace != None).distinct().all()
-    marketplaces = [m[0] for m in marketplaces if m[0]]
-
-    # Получаем всех клиентов для автодополнения
-    customers_query = Customer.query.all()
-    customers = [{'id': c.id, 'name': c.name, 'is_debtor': c.is_debtor, 'debt_amount': c.debt_amount or 0} for c in customers_query]
-
-    return render_template('index.html',
-                           products=products,
-                           current_rate=current_rate,
-                           search_query=search_query,
-                           status_filter=status_filter,
-                           marketplace_filter=marketplace_filter,
-                           marketplaces=marketplaces,
-                           sort_by=sort_by,
-                           sort_order=sort_order,
-                           customers=customers)
+    # Сортировка по номеру заказа как по числу
+        from sqlalchemy import cast, Integer
+        try:
+            query = query.order_by(cast(Product.order_number, Integer).desc() if sort_order == 'desc' else cast(Product.order_number, Integer).asc())
+        except:
+        # Если не получается преобразовать в число, сортируем как строку
+            query = query.order_by(Product.order_number.desc() if sort_order == 'desc' else Product.order_number.asc())
+    
+        products = query.all()
+        customers_query = Customer.query.all()
+        customers = [{'id': c.id, 'name': c.name, 'is_debtor': c.is_debtor, 'debt_amount': c.debt_amount or 0} for c in customers_query]
+    
+    # Получаем последний номер заказа для автозаполнения
+        last_order_number = 0
+        if products:
+            try:
+                last_order_number = int(products[0].order_number)
+            except:
+                pass
+    
+        return render_template('index.html',
+                               products=products,
+                               current_rate=current_rate,
+                               search_query=search_query,
+                               status_filter=status_filter,
+                               marketplace_filter=marketplace_filter,
+                               marketplaces=marketplaces,
+                               sort_by=sort_by,
+                               sort_order=sort_order,
+                               customers=customers,
+                               next_order_number=last_order_number + 1)
 
 # Добавление товара
 @app.route('/add_product', methods=['POST'])

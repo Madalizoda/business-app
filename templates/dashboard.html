@@ -1,393 +1,545 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Дашборд - Мой Бизнес</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Главная - Мой Бизнес</title>
     <style>
-        /* Общие стили для всех устройств */
-        .stat-card { 
-            color: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 10px;
-            text-align: center;
-            transition: transform 0.2s;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .stat-card:hover {
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.3);
             transform: translateY(-2px);
         }
-        .stat-number { 
-            font-size: 1.5rem; 
-            font-weight: bold; 
+
+        .content {
+            padding: 30px;
         }
-        .progress { height: 8px; margin-top: 5px; }
-        
-        /* Мобильные стили */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .stat-card.purple::before { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .stat-card.pink::before { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .stat-card.blue::before { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .stat-card.green::before { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .stat-card.orange::before { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .stat-card.red::before { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
+
+        .stat-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3em;
+        }
+
+        .finance-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .finance-row:last-child {
+            border-bottom: none;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 2px solid #667eea;
+        }
+
+        .finance-row.total {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .finance-label {
+            color: #4a5568;
+        }
+
+        .finance-value {
+            font-weight: 600;
+        }
+
+        .finance-value.positive {
+            color: #48bb78;
+        }
+
+        .finance-value.negative {
+            color: #f56565;
+        }
+
+        .status-item {
+            margin-bottom: 15px;
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .status-label {
+            color: #4a5568;
+        }
+
+        .status-count {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.ordered { background: linear-gradient(90deg, #cbd5e0 0%, #a0aec0 100%); }
+        .progress-fill.in_china { background: linear-gradient(90deg, #fbd38d 0%, #ed8936 100%); }
+        .progress-fill.in_transit { background: linear-gradient(90deg, #90cdf4 0%, #4299e1 100%); }
+        .progress-fill.received { background: linear-gradient(90deg, #9f7aea 0%, #805ad5 100%); }
+        .progress-fill.sold { background: linear-gradient(90deg, #48bb78 0%, #38a169 100%); }
+
+        .debtor-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #fff5f5;
+            border-left: 4px solid #fc8181;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .debtor-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .debtor-amount {
+            color: #e53e3e;
+            font-weight: bold;
+        }
+
+        .warning-card {
+            background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+            border-left: 4px solid #fc8181;
+        }
+
+        .warning-card h3 {
+            color: #c53030;
+        }
+
+        .unpaid-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .unpaid-label {
+            color: #4a5568;
+        }
+
+        .unpaid-value {
+            font-weight: 600;
+            color: #e53e3e;
+        }
+
+        .activity-item {
+            padding: 12px;
+            border-left: 3px solid #667eea;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .activity-time {
+            color: #718096;
+            font-size: 0.85em;
+            margin-bottom: 3px;
+        }
+
+        .activity-text {
+            color: #2d3748;
+        }
+
+        .popular-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .popular-name {
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .popular-count {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
         @media (max-width: 768px) {
-            .mobile-card {
-                border: 1px solid #ddd;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 15px;
-                background: white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .nav-buttons {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 5px;
-                margin-bottom: 15px;
-            }
-            .nav-buttons .btn {
-                font-size: 0.8rem;
-                padding: 6px 8px;
-            }
-            .quick-actions {
-                display: grid;
+            .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 8px;
-                margin-top: 15px;
-            }
-            .desktop-view { display: none; }
-        }
-        
-        /* Десктопные стили */
-        @media (min-width: 769px) {
-            .container { max-width: 1200px; }
-            .nav-buttons {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 25px;
-                justify-content: center;
-            }
-            .nav-buttons .btn {
-                font-size: 1rem;
-                padding: 10px 20px;
-                min-width: 120px;
-            }
-            .desktop-grid {
-                display: grid;
-                grid-template-columns: 2fr 1fr;
-                gap: 20px;
-                align-items: start;
-            }
-            .main-stats {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
                 gap: 15px;
-                margin-bottom: 20px;
             }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
             .stat-card {
-                padding: 20px;
+                padding: 15px;
             }
-            .stat-number { 
-                font-size: 2rem; 
+
+            .stat-value {
+                font-size: 1.8em;
             }
-            .desktop-card {
-                background: white;
-                border-radius: 10px;
-                padding: 20px;
-                margin-bottom: 20px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                border: 1px solid #e9ecef;
+
+            .header h1 {
+                font-size: 1.8em;
             }
-            .mobile-view { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="container mt-3">
-        <h4 class="text-center mb-3">📈 Дашборд</h4>
-        
-        <!-- Навигация -->
-        <div class="nav-buttons">
-            <a href="/orders" class="btn btn-outline-primary">📦 Заказы</a>
-            <a href="/warehouse" class="btn btn-outline-warning">🏪 Склад</a>
-            <a href="/sales" class="btn btn-outline-success">💰 Продажи</a>
-            <a href="/customers" class="btn btn-outline-info">👥 Клиенты</a>
-        </div>
-
-        <!-- ДЕСКТОПНАЯ ВЕРСИЯ -->
-        <div class="desktop-view">
-            <div class="desktop-grid">
-                <!-- Основная колонка -->
-                <div>
-                    <!-- Основная статистика -->
-                    <div class="main-stats">
-                        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <div class="stat-number">{{ stats.total_products }}</div>
-                            <small>Товары</small>
-                        </div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                            <div class="stat-number">{{ stats.total_customers }}</div>
-                            <small>Клиенты</small>
-                        </div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                            <div class="stat-number">{{ stats.total_sales_count }}</div>
-                            <small>Продажи</small>
-                        </div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                            <div class="stat-number">{{ "%.0f"|format(stats.total_profit) }}</div>
-                            <small>Прибыль</small>
-                        </div>
-                    </div>
-
-                    <!-- Финансы и статусы в ряд -->
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="desktop-card">
-                                <h5>💰 Финансы</h5>
-                                <div class="d-flex justify-content-between border-bottom py-2">
-                                    <span>Выручка:</span>
-                                    <strong>{{ "%.0f"|format(stats.total_revenue) }} TJS</strong>
-                                </div>
-                                <div class="d-flex justify-content-between border-bottom py-2">
-                                    <span>Инвестиции:</span>
-                                    <span>{{ "%.0f"|format(stats.total_investment) }} TJS</span>
-                                </div>
-                                <div class="d-flex justify-content-between border-bottom py-2">
-                                    <span>Доставка:</span>
-                                    <span>{{ "%.0f"|format(stats.total_shipping) }} TJS</span>
-                                </div>
-                                <div class="d-flex justify-content-between pt-2 mt-2 fw-bold fs-5">
-                                    <span>Прибыль:</span>
-                                    <strong class="text-success">{{ "%.0f"|format(stats.total_profit) }} TJS</strong>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="desktop-card">
-                                <h5>📊 Статусы товаров</h5>
-                                {% for status, count in stats.status_stats.items() %}
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between">
-                                        <span>
-                                            {% if status == 'ordered' %}🟢 Заказано
-                                            {% elif status == 'in_china' %}🟡 В Китае
-                                            {% elif status == 'in_transit' %}🔵 В пути
-                                            {% elif status == 'received' %}🟣 На складе
-                                            {% elif status == 'sold' %}🟢 Продано
-                                            {% endif %}
-                                        </span>
-                                        <span>{{ count }}</span>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar 
-                                            {% if status == 'ordered' %}bg-secondary
-                                            {% elif status == 'in_china' %}bg-warning
-                                            {% elif status == 'in_transit' %}bg-info
-                                            {% elif status == 'received' %}bg-primary
-                                            {% elif status == 'sold' %}bg-success
-                                            {% endif %}" 
-                                            style="width: {{ (count/stats.total_products*100) if stats.total_products > 0 else 0 }}%">
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Популярные товары -->
-                    {% if stats.popular_products %}
-                    <div class="desktop-card">
-                        <h5>🔥 Популярные товары</h5>
-                        <div class="row">
-                            {% for product in stats.popular_products %}
-                            <div class="col-6 mb-2">
-                                <div class="d-flex justify-content-between align-items-center p-2 border rounded">
-                                    <span>{{ product.name }}</span>
-                                    <span class="badge bg-primary">{{ product.sales_count }} продаж</span>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Боковая колонка -->
-                <div>
-                    <!-- Быстрые действия -->
-                    <div class="desktop-card">
-                        <h5>⚡ Быстрые действия</h5>
-                        <div class="d-grid gap-2">
-                            <a href="/orders" class="btn btn-outline-primary">➕ Новый заказ</a>
-                            <a href="/warehouse" class="btn btn-outline-success">💰 Продать товар</a>
-                            <a href="/customers" class="btn btn-outline-info">👥 Добавить клиента</a>
-                            <a href="/sales" class="btn btn-outline-warning">📊 Отчет продаж</a>
-                        </div>
-                    </div>
-
-                    <!-- Добавить расход -->
-                    <div class="desktop-card">
-                        <h5>💸 Добавить расход</h5>
-                        <form method="POST" action="/add_expense">
-                            <div class="mb-2">
-                                <input type="text" name="description" class="form-control" placeholder="Описание" required>
-                            </div>
-                            <div class="mb-2">
-                                <input type="number" step="0.01" name="amount" class="form-control" placeholder="Сумма (TJS)" required>
-                            </div>
-                            <div class="mb-2">
-                                <select name="category" class="form-select">
-                                    <option value="delivery">Доставка</option>
-                                    <option value="storage">Склад</option>
-                                    <option value="marketing">Маркетинг</option>
-                                    <option value="other">Другое</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-warning w-100">Добавить расход</button>
-                        </form>
-                    </div>
-                </div>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Главная</h1>
+            <div class="nav">
+                <a href="{{ url_for('dashboard') }}">📊 Главная</a>
+                <a href="{{ url_for('index') }}">🛒 Заказы</a>
+                <a href="{{ url_for('warehouse') }}">📦 Склад</a>
+                <a href="{{ url_for('sales') }}">💰 Продажи</a>
+                <a href="{{ url_for('customers') }}">👥 Клиенты</a>
+                <a href="{{ url_for('logout') }}">🚪 Выход</a>
             </div>
         </div>
 
-        <!-- МОБИЛЬНАЯ ВЕРСИЯ -->
-        <div class="mobile-view">
+        <div class="content">
             <!-- Основная статистика -->
-            <div class="row">
-                <div class="col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="stat-number">{{ stats.total_products }}</div>
-                        <small>Товары</small>
-                    </div>
+            <div class="stats-grid">
+                <div class="stat-card purple">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-value">{{ stats.total_products }}</div>
+                    <div class="stat-label">Всего товаров</div>
                 </div>
-                <div class="col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                        <div class="stat-number">{{ stats.total_customers }}</div>
-                        <small>Клиенты</small>
-                    </div>
+
+                <div class="stat-card pink">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-value">{{ stats.total_customers }}</div>
+                    <div class="stat-label">Клиентов</div>
                 </div>
-                <div class="col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                        <div class="stat-number">{{ stats.total_sales_count }}</div>
-                        <small>Продажи</small>
-                    </div>
+
+                <div class="stat-card blue">
+                    <div class="stat-icon">💼</div>
+                    <div class="stat-value">{{ stats.total_sales_count }}</div>
+                    <div class="stat-label">Продаж</div>
                 </div>
-                <div class="col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                        <div class="stat-number">{{ "%.0f"|format(stats.total_profit) }}</div>
-                        <small>Прибыль</small>
-                    </div>
+
+                <div class="stat-card green">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-value">{{ "%.0f"|format(stats.total_profit) }} с</div>
+                    <div class="stat-label">Прибыль</div>
                 </div>
+
+                {% if stats.debtors_count > 0 %}
+                <div class="stat-card red">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-value">{{ stats.debtors_count }}</div>
+                    <div class="stat-label">Должников</div>
+                </div>
+
+                <div class="stat-card orange">
+                    <div class="stat-icon">💸</div>
+                    <div class="stat-value">{{ "%.0f"|format(stats.total_debt) }} с</div>
+                    <div class="stat-label">Сумма долгов</div>
+                </div>
+                {% endif %}
             </div>
 
-            <!-- Финансы -->
-            <div class="mobile-card">
-                <h6>💰 Финансы</h6>
-                <div class="small">
-                    <div class="d-flex justify-content-between">
-                        <span>Выручка:</span>
-                        <strong>{{ "%.0f"|format(stats.total_revenue) }} TJS</strong>
+            <!-- Карточки с детальной информацией -->
+            <div class="cards-grid">
+                <!-- Финансы -->
+                <div class="card">
+                    <h3>💰 Финансы</h3>
+                    <div class="finance-row">
+                        <span class="finance-label">Выручка:</span>
+                        <span class="finance-value positive">{{ "%.0f"|format(stats.total_revenue) }} TJS</span>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Инвестиции:</span>
-                        <span>{{ "%.0f"|format(stats.total_investment) }} TJS</span>
+                    <div class="finance-row">
+                        <span class="finance-label">Инвестиции:</span>
+                        <span class="finance-value negative">-{{ "%.0f"|format(stats.total_investment) }} TJS</span>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Доставка:</span>
-                        <span>{{ "%.0f"|format(stats.total_shipping) }} TJS</span>
+                    <div class="finance-row">
+                        <span class="finance-label">Доставка:</span>
+                        <span class="finance-value negative">-{{ "%.0f"|format(stats.total_shipping) }} TJS</span>
                     </div>
-                    <div class="d-flex justify-content-between border-top pt-1 mt-1">
-                        <span><strong>Прибыль:</strong></span>
-                        <strong class="text-success">{{ "%.0f"|format(stats.total_profit) }} TJS</strong>
+                    <div class="finance-row total">
+                        <span class="finance-label">Чистая прибыль:</span>
+                        <span class="finance-value positive">{{ "%.0f"|format(stats.total_profit) }} TJS</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Статусы товаров -->
-            <div class="mobile-card">
-                <h6>📊 Статусы товаров</h6>
-                <div class="small">
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span>🟢 Заказано:</span>
-                            <span>{{ stats.status_stats.ordered }}</span>
+                <!-- Статусы товаров -->
+                <div class="card">
+                    <h3>📊 Статусы товаров</h3>
+                    <div class="status-item">
+                        <div class="status-header">
+                            <span class="status-label">🟢 Заказано</span>
+                            <span class="status-count">{{ stats.status_stats.ordered }}</span>
                         </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-secondary" style="width: {{ (stats.status_stats.ordered/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span>🟡 В Китае:</span>
-                            <span>{{ stats.status_stats.in_china }}</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-warning" style="width: {{ (stats.status_stats.in_china/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ordered" style="width: {{ (stats.status_stats.ordered / stats.total_products * 100) if stats.total_products > 0 else 0 }}%"></div>
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span>🔵 В пути:</span>
-                            <span>{{ stats.status_stats.in_transit }}</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-info" style="width: {{ (stats.status_stats.in_transit/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span>🟣 На складе:</span>
-                            <span>{{ stats.status_stats.received }}</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-primary" style="width: {{ (stats.status_stats.received/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span>🟢 Продано:</span>
-                            <span>{{ stats.status_stats.sold }}</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-success" style="width: {{ (stats.status_stats.sold/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Популярные товары -->
-            {% if stats.popular_products %}
-            <div class="mobile-card">
-                <h6>🔥 Популярные товары</h6>
-                {% for product in stats.popular_products %}
-                <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-                    <span class="small">{{ product.name }}</span>
-                    <span class="badge bg-primary">{{ product.sales_count }}</span>
+                    <div class="status-item">
+                        <div class="status-header">
+                            <span class="status-label">🟡 В Китае</span>
+                            <span class="status-count">{{ stats.status_stats.in_china }}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill in_china" style="width: {{ (stats.status_stats.in_china / stats.total_products * 100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="status-item">
+                        <div class="status-header">
+                            <span class="status-label">🔵 В пути</span>
+                            <span class="status-count">{{ stats.status_stats.in_transit }}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill in_transit" style="width: {{ (stats.status_stats.in_transit / stats.total_products * 100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="status-item">
+                        <div class="status-header">
+                            <span class="status-label">🟣 На складе</span>
+                            <span class="status-count">{{ stats.status_stats.received }}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill received" style="width: {{ (stats.status_stats.received / stats.total_products * 100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="status-item">
+                        <div class="status-header">
+                            <span class="status-label">🟢 Продано</span>
+                            <span class="status-count">{{ stats.status_stats.sold }}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill sold" style="width: {{ (stats.status_stats.sold / stats.total_products * 100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
                 </div>
-                {% endfor %}
+
+                <!-- Должники (если есть) -->
+                {% if stats.debtors_count > 0 %}
+                <div class="card warning-card">
+                    <h3>⚠️ Должники ({{ stats.debtors_count }})</h3>
+                    <div class="unpaid-item">
+                        <span class="unpaid-label">Общая сумма долгов:</span>
+                        <span class="unpaid-value">{{ "%.2f"|format(stats.total_debt) }} с</span>
+                    </div>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <a href="{{ url_for('customers') }}?debtor=yes" style="color: #c53030; font-weight: 600; text-decoration: none;">
+                            Посмотреть всех должников →
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Популярные товары -->
+                {% if stats.popular_products %}
+                <div class="card">
+                    <h3>🔥 Популярные товары</h3>
+                    {% for product in stats.popular_products %}
+                    <div class="popular-item">
+                        <span class="popular-name">{{ product.name }}</span>
+                        <span class="popular-count">{{ product.sales_count }} продаж</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
 
             <!-- Быстрые действия -->
-            <div class="mobile-card">
-                <h6>⚡ Быстрые действия</h6>
+            <div class="card">
+                <h3>⚡ Быстрые действия</h3>
                 <div class="quick-actions">
-                    <a href="/orders" class="btn btn-outline-primary btn-sm">➕ Заказ</a>
-                    <a href="/warehouse" class="btn btn-outline-success btn-sm">💰 Продать</a>
-                    <a href="/customers" class="btn btn-outline-info btn-sm">👥 Клиент</a>
-                    <a href="/sales" class="btn btn-outline-warning btn-sm">📊 Отчет</a>
+                    <a href="{{ url_for('index') }}" class="action-btn">➕ Новый заказ</a>
+                    <a href="{{ url_for('warehouse') }}" class="action-btn">💰 Продать товар</a>
+                    <a href="{{ url_for('customers') }}" class="action-btn">👥 Клиенты</a>
+                    <a href="{{ url_for('sales') }}" class="action-btn">📊 Отчет продаж</a>
                 </div>
-            </div>
-
-            <!-- Добавить расход -->
-            <div class="mobile-card">
-                <h6>💸 Добавить расход</h6>
-                <form method="POST" action="/add_expense">
-                    <input type="text" name="description" class="form-control form-control-sm mb-1" placeholder="Описание" required>
-                    <input type="number" step="0.01" name="amount" class="form-control form-control-sm mb-1" placeholder="Сумма (TJS)" required>
-                    <select name="category" class="form-select form-select-sm mb-1">
-                        <option value="delivery">Доставка</option>
-                        <option value="storage">Склад</option>
-                        <option value="marketing">Маркетинг</option>
-                        <option value="other">Другое</option>
-                    </select>
-                    <button type="submit" class="btn btn-warning btn-sm w-100">Добавить расход</button>
-                </form>
             </div>
         </div>
     </div>

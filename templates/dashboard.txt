@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Дашборд - Мой Бизнес</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Общие стили для всех устройств */
+        .stat-card { 
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .stat-number { 
+            font-size: 1.5rem; 
+            font-weight: bold; 
+        }
+        .progress { height: 8px; margin-top: 5px; }
+        
+        /* Мобильные стили */
+        @media (max-width: 768px) {
+            .mobile-card {
+                border: 1px solid #ddd;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 15px;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .nav-buttons {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 5px;
+                margin-bottom: 15px;
+            }
+            .nav-buttons .btn {
+                font-size: 0.8rem;
+                padding: 6px 8px;
+            }
+            .quick-actions {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-top: 15px;
+            }
+            .desktop-view { display: none; }
+        }
+        
+        /* Десктопные стили */
+        @media (min-width: 769px) {
+            .container { max-width: 1200px; }
+            .nav-buttons {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 25px;
+                justify-content: center;
+            }
+            .nav-buttons .btn {
+                font-size: 1rem;
+                padding: 10px 20px;
+                min-width: 120px;
+            }
+            .desktop-grid {
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 20px;
+                align-items: start;
+            }
+            .main-stats {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            .stat-card {
+                padding: 20px;
+            }
+            .stat-number { 
+                font-size: 2rem; 
+            }
+            .desktop-card {
+                background: white;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                border: 1px solid #e9ecef;
+            }
+            .mobile-view { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-3">
+        <h4 class="text-center mb-3">📈 Дашборд</h4>
+        
+        <!-- Навигация -->
+        <div class="nav-buttons">
+            <a href="/orders" class="btn btn-outline-primary">📦 Заказы</a>
+            <a href="/warehouse" class="btn btn-outline-warning">🏪 Склад</a>
+            <a href="/sales" class="btn btn-outline-success">💰 Продажи</a>
+            <a href="/customers" class="btn btn-outline-info">👥 Клиенты</a>
+        </div>
+
+        <!-- ДЕСКТОПНАЯ ВЕРСИЯ -->
+        <div class="desktop-view">
+            <div class="desktop-grid">
+                <!-- Основная колонка -->
+                <div>
+                    <!-- Основная статистика -->
+                    <div class="main-stats">
+                        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="stat-number">{{ stats.total_products }}</div>
+                            <small>Товары</small>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <div class="stat-number">{{ stats.total_customers }}</div>
+                            <small>Клиенты</small>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <div class="stat-number">{{ stats.total_sales_count }}</div>
+                            <small>Продажи</small>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                            <div class="stat-number">{{ "%.0f"|format(stats.total_profit) }}</div>
+                            <small>Прибыль</small>
+                        </div>
+                    </div>
+
+                    <!-- Финансы и статусы в ряд -->
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="desktop-card">
+                                <h5>💰 Финансы</h5>
+                                <div class="d-flex justify-content-between border-bottom py-2">
+                                    <span>Выручка:</span>
+                                    <strong>{{ "%.0f"|format(stats.total_revenue) }} TJS</strong>
+                                </div>
+                                <div class="d-flex justify-content-between border-bottom py-2">
+                                    <span>Инвестиции:</span>
+                                    <span>{{ "%.0f"|format(stats.total_investment) }} TJS</span>
+                                </div>
+                                <div class="d-flex justify-content-between border-bottom py-2">
+                                    <span>Доставка:</span>
+                                    <span>{{ "%.0f"|format(stats.total_shipping) }} TJS</span>
+                                </div>
+                                <div class="d-flex justify-content-between pt-2 mt-2 fw-bold fs-5">
+                                    <span>Прибыль:</span>
+                                    <strong class="text-success">{{ "%.0f"|format(stats.total_profit) }} TJS</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="desktop-card">
+                                <h5>📊 Статусы товаров</h5>
+                                {% for status, count in stats.status_stats.items() %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>
+                                            {% if status == 'ordered' %}🟢 Заказано
+                                            {% elif status == 'in_china' %}🟡 В Китае
+                                            {% elif status == 'in_transit' %}🔵 В пути
+                                            {% elif status == 'received' %}🟣 На складе
+                                            {% elif status == 'sold' %}🟢 Продано
+                                            {% endif %}
+                                        </span>
+                                        <span>{{ count }}</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar 
+                                            {% if status == 'ordered' %}bg-secondary
+                                            {% elif status == 'in_china' %}bg-warning
+                                            {% elif status == 'in_transit' %}bg-info
+                                            {% elif status == 'received' %}bg-primary
+                                            {% elif status == 'sold' %}bg-success
+                                            {% endif %}" 
+                                            style="width: {{ (count/stats.total_products*100) if stats.total_products > 0 else 0 }}%">
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Популярные товары -->
+                    {% if stats.popular_products %}
+                    <div class="desktop-card">
+                        <h5>🔥 Популярные товары</h5>
+                        <div class="row">
+                            {% for product in stats.popular_products %}
+                            <div class="col-6 mb-2">
+                                <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                                    <span>{{ product.name }}</span>
+                                    <span class="badge bg-primary">{{ product.sales_count }} продаж</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Боковая колонка -->
+                <div>
+                    <!-- Быстрые действия -->
+                    <div class="desktop-card">
+                        <h5>⚡ Быстрые действия</h5>
+                        <div class="d-grid gap-2">
+                            <a href="/orders" class="btn btn-outline-primary">➕ Новый заказ</a>
+                            <a href="/warehouse" class="btn btn-outline-success">💰 Продать товар</a>
+                            <a href="/customers" class="btn btn-outline-info">👥 Добавить клиента</a>
+                            <a href="/sales" class="btn btn-outline-warning">📊 Отчет продаж</a>
+                        </div>
+                    </div>
+
+                    <!-- Добавить расход -->
+                    <div class="desktop-card">
+                        <h5>💸 Добавить расход</h5>
+                        <form method="POST" action="/add_expense">
+                            <div class="mb-2">
+                                <input type="text" name="description" class="form-control" placeholder="Описание" required>
+                            </div>
+                            <div class="mb-2">
+                                <input type="number" step="0.01" name="amount" class="form-control" placeholder="Сумма (TJS)" required>
+                            </div>
+                            <div class="mb-2">
+                                <select name="category" class="form-select">
+                                    <option value="delivery">Доставка</option>
+                                    <option value="storage">Склад</option>
+                                    <option value="marketing">Маркетинг</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100">Добавить расход</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- МОБИЛЬНАЯ ВЕРСИЯ -->
+        <div class="mobile-view">
+            <!-- Основная статистика -->
+            <div class="row">
+                <div class="col-6">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="stat-number">{{ stats.total_products }}</div>
+                        <small>Товары</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="stat-number">{{ stats.total_customers }}</div>
+                        <small>Клиенты</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="stat-number">{{ stats.total_sales_count }}</div>
+                        <small>Продажи</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                        <div class="stat-number">{{ "%.0f"|format(stats.total_profit) }}</div>
+                        <small>Прибыль</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Финансы -->
+            <div class="mobile-card">
+                <h6>💰 Финансы</h6>
+                <div class="small">
+                    <div class="d-flex justify-content-between">
+                        <span>Выручка:</span>
+                        <strong>{{ "%.0f"|format(stats.total_revenue) }} TJS</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Инвестиции:</span>
+                        <span>{{ "%.0f"|format(stats.total_investment) }} TJS</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Доставка:</span>
+                        <span>{{ "%.0f"|format(stats.total_shipping) }} TJS</span>
+                    </div>
+                    <div class="d-flex justify-content-between border-top pt-1 mt-1">
+                        <span><strong>Прибыль:</strong></span>
+                        <strong class="text-success">{{ "%.0f"|format(stats.total_profit) }} TJS</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статусы товаров -->
+            <div class="mobile-card">
+                <h6>📊 Статусы товаров</h6>
+                <div class="small">
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>🟢 Заказано:</span>
+                            <span>{{ stats.status_stats.ordered }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-secondary" style="width: {{ (stats.status_stats.ordered/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>🟡 В Китае:</span>
+                            <span>{{ stats.status_stats.in_china }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {{ (stats.status_stats.in_china/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>🔵 В пути:</span>
+                            <span>{{ stats.status_stats.in_transit }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" style="width: {{ (stats.status_stats.in_transit/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>🟣 На складе:</span>
+                            <span>{{ stats.status_stats.received }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" style="width: {{ (stats.status_stats.received/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>🟢 Продано:</span>
+                            <span>{{ stats.status_stats.sold }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ (stats.status_stats.sold/stats.total_products*100) if stats.total_products > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Популярные товары -->
+            {% if stats.popular_products %}
+            <div class="mobile-card">
+                <h6>🔥 Популярные товары</h6>
+                {% for product in stats.popular_products %}
+                <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                    <span class="small">{{ product.name }}</span>
+                    <span class="badge bg-primary">{{ product.sales_count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Быстрые действия -->
+            <div class="mobile-card">
+                <h6>⚡ Быстрые действия</h6>
+                <div class="quick-actions">
+                    <a href="/orders" class="btn btn-outline-primary btn-sm">➕ Заказ</a>
+                    <a href="/warehouse" class="btn btn-outline-success btn-sm">💰 Продать</a>
+                    <a href="/customers" class="btn btn-outline-info btn-sm">👥 Клиент</a>
+                    <a href="/sales" class="btn btn-outline-warning btn-sm">📊 Отчет</a>
+                </div>
+            </div>
+
+            <!-- Добавить расход -->
+            <div class="mobile-card">
+                <h6>💸 Добавить расход</h6>
+                <form method="POST" action="/add_expense">
+                    <input type="text" name="description" class="form-control form-control-sm mb-1" placeholder="Описание" required>
+                    <input type="number" step="0.01" name="amount" class="form-control form-control-sm mb-1" placeholder="Сумма (TJS)" required>
+                    <select name="category" class="form-select form-select-sm mb-1">
+                        <option value="delivery">Доставка</option>
+                        <option value="storage">Склад</option>
+                        <option value="marketing">Маркетинг</option>
+                        <option value="other">Другое</option>
+                    </select>
+                    <button type="submit" class="btn btn-warning btn-sm w-100">Добавить расход</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
